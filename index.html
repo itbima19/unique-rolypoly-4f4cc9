@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Attendance Management System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0F172A;
+    --ink-soft:#475569;
+    --muted:#94A3B8;
+    --line:#E2E8F0;
+    --bg:#F8FAFC;
+    --panel:#FFFFFF;
+    --brand:#4F46E5;
+    --brand-dark:#4338CA;
+    --brand-soft:#EEF2FF;
+    --ok:#16A34A;
+    --ok-soft:#F0FDF4;
+    --warn:#D97706;
+    --warn-soft:#FFFBEB;
+    --bad:#DC2626;
+    --bad-soft:#FEF2F2;
+    --radius:12px;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{ color:inherit; }
+
+  /* ============ UTILITIES ============ */
+  .hidden{ display:none !important; }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    font-family:inherit; font-weight:600; font-size:14px;
+    padding:10px 18px; border-radius:9px; border:1px solid transparent;
+    cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, background .15s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn-primary{ background:var(--brand); color:#fff; }
+  .btn-primary:hover{ background:var(--brand-dark); }
+  .btn-outline{ background:#fff; border-color:var(--line); color:var(--ink); }
+  .btn-outline:hover{ border-color:var(--brand); color:var(--brand); }
+  .btn-danger-outline{ background:#fff; border-color:var(--line); color:var(--bad); }
+  .btn-danger-outline:hover{ background:var(--bad-soft); border-color:var(--bad); }
+  .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field label{ font-size:12.5px; font-weight:600; color:var(--ink-soft); }
+  .field input, .field select{
+    font-family:inherit; font-size:14px; padding:10px 12px;
+    border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink);
+    outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--brand); box-shadow:0 0 0 3px var(--brand-soft); }
+
+  .badge{
+    display:inline-flex; align-items:center; gap:5px;
+    font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px;
+  }
+  .badge-ok{ background:var(--ok-soft); color:var(--ok); }
+  .badge-warn{ background:var(--warn-soft); color:var(--warn); }
+  .badge-bad{ background:var(--bad-soft); color:var(--bad); }
+  .badge-neutral{ background:var(--brand-soft); color:var(--brand); }
+
+  .toast-wrap{ position:fixed; top:18px; right:18px; z-index:200; display:flex; flex-direction:column; gap:10px; }
+  .toast{
+    min-width:260px; max-width:360px; background:var(--ink); color:#fff; font-size:13.5px;
+    padding:12px 16px; border-radius:10px; box-shadow:0 12px 30px -10px rgba(15,23,42,.4);
+    display:flex; align-items:flex-start; gap:10px; animation:slideIn .25s ease;
+  }
+  .toast.error{ background:var(--bad); }
+  .toast.success{ background:var(--ok); }
+  @keyframes slideIn{ from{ opacity:0; transform:translateX(20px);} to{ opacity:1; transform:translateX(0);} }
+
+  .spinner{
+    width:16px; height:16px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.4); border-top-color:#fff;
+    animation:spin .7s linear infinite; flex-shrink:0;
+  }
+  .spinner-dark{ border:2px solid var(--line); border-top-color:var(--brand); }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ============ LOGIN ============ */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:radial-gradient(circle at 20% 20%, #EEF2FF, #F8FAFC 60%);
+    padding:24px;
+  }
+  .login-card{
+    width:100%; max-width:380px; background:var(--panel); border:1px solid var(--line);
+    border-radius:16px; padding:36px 32px; box-shadow:0 20px 45px -25px rgba(15,23,42,.25);
+  }
+  .login-logo{
+    width:46px; height:46px; border-radius:11px; background:var(--brand); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px;
+    margin-bottom:18px;
+  }
+  .login-card h1{ font-size:21px; font-weight:800; margin:0 0 4px; letter-spacing:-0.01em; }
+  .login-card p.sub{ margin:0 0 26px; color:var(--muted); font-size:13.5px; }
+  #loginForm{ display:flex; flex-direction:column; gap:16px; }
+  #loginError{
+    display:none; background:var(--bad-soft); color:var(--bad); font-size:13px;
+    padding:10px 12px; border-radius:8px; border:1px solid #FECACA;
+  }
+  #loginError.show{ display:block; }
+  #registerError{
+    display:none; background:var(--bad-soft); color:var(--bad); font-size:13px;
+    padding:10px 12px; border-radius:8px; border:1px solid #FECACA; margin-bottom:4px;
+  }
+  #registerError.show{ display:block; }
+
+  /* ============ APP SHELL ============ */
+  #appShell{ min-height:100vh; }
+  header.topbar{
+    background:var(--panel); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:50;
+  }
+  .topbar-inner{
+    max-width:1160px; margin:0 auto; padding:0 24px; height:64px;
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .mark{
+    width:34px; height:34px; border-radius:9px; background:var(--brand); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px;
+  }
+  .brand span{ font-weight:700; font-size:15px; letter-spacing:-0.01em; }
+
+  nav.tabs{ display:flex; gap:4px; }
+  nav.tabs button{
+    font-family:inherit; font-size:14px; font-weight:600; color:var(--ink-soft);
+    background:none; border:none; padding:9px 16px; border-radius:8px; cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  nav.tabs button:hover{ background:var(--bg); color:var(--ink); }
+  nav.tabs button.active{ background:var(--brand-soft); color:var(--brand); }
+
+  .user-chip{ display:flex; align-items:center; gap:10px; }
+  .user-chip .who{ text-align:right; }
+  .user-chip .who .name{ font-size:13.5px; font-weight:600; }
+  .user-chip .who .role{ font-size:11.5px; color:var(--muted); text-transform:capitalize; }
+  .avatar{
+    width:34px; height:34px; border-radius:50%; background:var(--ink);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px;
+  }
+
+  main{ max-width:1160px; margin:0 auto; padding:32px 24px 80px; }
+
+  .page-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+  .page-head h2{ font-size:22px; font-weight:800; margin:0 0 4px; letter-spacing:-0.01em; }
+  .page-head p{ margin:0; color:var(--muted); font-size:13.5px; }
+
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); }
+  .card-pad{ padding:22px; }
+  .card + .card{ margin-top:20px; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:22px; }
+  @media (max-width: 800px){ .stat-grid{ grid-template-columns:repeat(2, 1fr); } }
+  .stat{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:18px 20px; }
+  .stat .num{ font-size:24px; font-weight:800; letter-spacing:-0.01em; }
+  .stat .lbl{ font-size:12px; color:var(--muted); margin-top:4px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  thead th{
+    text-align:left; font-size:11.5px; font-weight:700; color:var(--muted);
+    text-transform:uppercase; letter-spacing:.04em; padding:10px 14px; border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  tbody td{ padding:12px 14px; border-bottom:1px solid var(--line); color:var(--ink-soft); }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover{ background:var(--bg); }
+  .table-wrap{ overflow-x:auto; }
+  .empty-row td{ text-align:center; padding:34px; color:var(--muted); }
+
+  select.status-select{
+    font-family:inherit; font-size:13px; font-weight:600; padding:6px 10px; border-radius:7px;
+    border:1px solid var(--line); background:#fff; cursor:pointer;
+  }
+  select.status-select[data-status="Present"]{ color:var(--ok); border-color:#BBF7D0; background:var(--ok-soft); }
+  select.status-select[data-status="Absent"]{ color:var(--bad); border-color:#FECACA; background:var(--bad-soft); }
+  select.status-select[data-status="Leave"]{ color:var(--warn); border-color:#FDE68A; background:var(--warn-soft); }
+
+  .toolbar{ display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+
+  .section-actions{ display:flex; gap:10px; align-items:center; }
+
+  /* modal */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,23,42,.45); z-index:150;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .modal{
+    background:#fff; border-radius:14px; width:100%; max-width:440px;
+    padding:26px; box-shadow:0 30px 60px -20px rgba(15,23,42,.4);
+  }
+  .modal h3{ margin:0 0 4px; font-size:17px; font-weight:800; }
+  .modal p.sub{ margin:0 0 18px; font-size:13px; color:var(--muted); }
+  .modal-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+
+  .loading-row{ display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13.5px; padding:14px 0; }
+
+  footer.appfoot{ text-align:center; padding:20px 0 40px; color:var(--muted); font-size:12px; }
+
+  @media (max-width: 720px){
+    .topbar-inner{ padding:0 16px; }
+    nav.tabs{ position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--line);
+      justify-content:space-around; padding:8px 6px; z-index:60; }
+    nav.tabs button{ flex:1; text-align:center; }
+    main{ padding:22px 16px 100px; }
+    .modal-grid{ grid-template-columns:1fr; }
+    .user-chip .who{ display:none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">AMS</div>
+    <h1>Attendance Management</h1>
+    <p class="sub">Sign in with your registered account to continue.</p>
+
+    <div id="loginError"></div>
+
+    <form id="loginForm">
+      <div class="field">
+        <label for="username">Username</label>
+        <input type="text" id="username" autocomplete="username" placeholder="e.g. admin01" required />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" autocomplete="current-password" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="btn btn-primary" id="loginBtn" style="margin-top:6px; width:100%;">
+        <span id="loginBtnText">Sign In</span>
+      </button>
+    </form>
+
+    <p style="text-align:center; margin:20px 0 0; font-size:13.5px; color:var(--muted);">
+      New here?
+      <a href="#" id="openRegisterLink" style="color:var(--brand); font-weight:600; text-decoration:none;">Create an account</a>
+    </p>
+  </div>
+</div>
+
+<!-- ===================== REGISTER MODAL ===================== -->
+<div id="registerModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Create an Account</h3>
+    <p class="sub">This will be saved to the 'users' sheet.</p>
+
+    <div id="registerError"></div>
+
+    <form id="registerForm" style="margin-top:14px;">
+      <div class="field" style="margin-bottom:14px;">
+        <label for="regName">Full Name</label>
+        <input type="text" id="regName" required />
+      </div>
+      <div class="modal-grid" style="margin-bottom:14px;">
+        <div class="field">
+          <label for="regUsername">Username</label>
+          <input type="text" id="regUsername" autocomplete="username" required />
+        </div>
+        <div class="field">
+          <label for="regRole">Role</label>
+          <select id="regRole">
+            <option value="employee" selected>Employee</option>
+            <option value="teacher">Teacher</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-grid">
+        <div class="field">
+          <label for="regPassword">Password</label>
+          <input type="password" id="regPassword" autocomplete="new-password" required />
+        </div>
+        <div class="field">
+          <label for="regConfirmPassword">Confirm Password</label>
+          <input type="password" id="regConfirmPassword" autocomplete="new-password" required />
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="cancelRegisterBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="registerBtn">
+          <span id="registerBtnText">Create Account</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="appShell" class="hidden">
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="mark">AMS</div>
+        <span>Attendance Manager</span>
+      </div>
+
+      <nav class="tabs" id="tabs">
+        <button data-tab="dashboard" class="active">Dashboard</button>
+        <button data-tab="attendance">Mark Attendance</button>
+        <button data-tab="reports">Reports</button>
+      </nav>
+
+      <div class="user-chip">
+        <div class="who">
+          <div class="name" id="chipName">—</div>
+          <div class="role" id="chipRole">—</div>
+        </div>
+        <div class="avatar" id="chipAvatar">?</div>
+        <button class="btn btn-outline" id="logoutBtn" style="padding:8px 12px;">Log out</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ---------- DASHBOARD TAB ---------- -->
+    <section id="tab-dashboard">
+      <div class="page-head">
+        <div>
+          <h2>Dashboard</h2>
+          <p>Overview of employees and today's attendance.</p>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-outline" id="refreshDashboardBtn">Refresh</button>
+          <button class="btn btn-primary" id="openAddEmployeeBtn">+ Add Employee</button>
+        </div>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat"><div class="num" id="statTotal">0</div><div class="lbl">Total Employees</div></div>
+        <div class="stat"><div class="num" id="statPresent">0</div><div class="lbl">Present Today</div></div>
+        <div class="stat"><div class="num" id="statAbsent">0</div><div class="lbl">Absent Today</div></div>
+        <div class="stat"><div class="num" id="statLeave">0</div><div class="lbl">On Leave Today</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-pad table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Department</th>
+                <th>Contact</th>
+              </tr>
+            </thead>
+            <tbody id="employeeTableBody">
+              <tr class="empty-row"><td colspan="4">Loading employees…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- ATTENDANCE TAB ---------- -->
+    <section id="tab-attendance" class="hidden">
+      <div class="page-head">
+        <div>
+          <h2>Mark Attendance</h2>
+          <p>Select a date, set each employee's status, then submit.</p>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-outline" id="refreshAttendanceBtn">Refresh List</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="field" style="max-width:220px;">
+          <label for="attendanceDate">Date</label>
+          <input type="date" id="attendanceDate" />
+        </div>
+        <div class="field" style="max-width:220px;">
+          <label for="bulkStatus">Set all to</label>
+          <select id="bulkStatus">
+            <option value="">— Bulk set —</option>
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Leave">Leave</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-pad table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody">
+              <tr class="empty-row"><td colspan="3">Loading employees…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; margin-top:18px; gap:10px;">
+        <span id="submitStatusText" style="align-self:center; font-size:13px; color:var(--muted);"></span>
+        <button class="btn btn-primary" id="submitAttendanceBtn">Submit Attendance</button>
+      </div>
+    </section>
+
+    <!-- ---------- REPORTS TAB ---------- -->
+    <section id="tab-reports" class="hidden">
+      <div class="page-head">
+        <div>
+          <h2>Attendance Report</h2>
+          <p>Filter attendance records by date and/or employee.</p>
+        </div>
+        <div class="section-actions">
+          <button class="btn btn-outline" id="refreshReportBtn">Refresh</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="field" style="max-width:200px;">
+          <label for="filterDate">Date</label>
+          <input type="date" id="filterDate" />
+        </div>
+        <div class="field" style="max-width:220px;">
+          <label for="filterEmployee">Employee</label>
+          <select id="filterEmployee">
+            <option value="">All employees</option>
+          </select>
+        </div>
+        <div class="field" style="max-width:170px;">
+          <label for="filterStatus">Status</label>
+          <select id="filterStatus">
+            <option value="">All statuses</option>
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Leave">Leave</option>
+          </select>
+        </div>
+        <button class="btn btn-outline" id="clearFiltersBtn">Clear</button>
+      </div>
+
+      <div class="card">
+        <div class="card-pad table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Employee ID</th>
+                <th>Name</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody">
+              <tr class="empty-row"><td colspan="4">Loading attendance records…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="appfoot">Attendance Management System &middot; Connected to Google Sheets via Apps Script</footer>
+</div>
+
+<!-- ===================== ADD EMPLOYEE MODAL ===================== -->
+<div id="addEmployeeModal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>Add Employee</h3>
+    <p class="sub">This will be added to the 'employees' sheet.</p>
+    <form id="addEmployeeForm">
+      <div class="modal-grid">
+        <div class="field">
+          <label for="newEmpId">Employee ID</label>
+          <input type="text" id="newEmpId" required />
+        </div>
+        <div class="field">
+          <label for="newEmpName">Full Name</label>
+          <input type="text" id="newEmpName" required />
+        </div>
+        <div class="field">
+          <label for="newEmpDept">Department</label>
+          <input type="text" id="newEmpDept" />
+        </div>
+        <div class="field">
+          <label for="newEmpContact">Contact</label>
+          <input type="text" id="newEmpContact" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" id="cancelAddEmployeeBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveEmployeeBtn">Save Employee</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG — adjust these to match your actual Google Sheet structure.
+   ===================================================================== */
+const CONFIG = {
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbzbYbGANE7llGZ3SQCaLdAlSxL8B-ryN0B3VQ91rq_og8NajIfcDdk3X70B1taRpshhmQ/exec",
+
+  SHEETS: { USERS: "users", EMPLOYEES: "employees", ATTENDANCE: "attendance", REPORTS: "reports" },
+
+  // Assumed column order in each sheet (0-indexed). Edit if your sheet differs.
+  // users:      [ username, password, role, name ]
+  // employees:  [ employeeId, name, department, contact ]
+  // attendance: [ date, employeeId, name, status ]
+  COLS: {
+    USERS:      { username: 0, password: 1, role: 2, name: 3 },
+    EMPLOYEES:  { id: 0, name: 1, department: 2, contact: 3 },
+    ATTENDANCE: { date: 0, employeeId: 1, name: 2, status: 3 }
+  },
+
+  // Header handling: "auto" detects a header row by checking if the first cell
+  // of row 0 looks like a column name (e.g. "username", "id", "date").
+  // Set to true/false to force-skip or force-keep row 0 instead.
+  HAS_HEADER_ROW: "auto"
+};
+
+/* =====================================================================
+   API HELPERS
+   ===================================================================== */
+async function apiRead(sheet, headerHints){
+  const url = `${CONFIG.WEB_APP_URL}?action=read&sheet=${encodeURIComponent(sheet)}`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error(`Read failed for "${sheet}" (HTTP ${res.status})`);
+  const json = await res.json();
+  const rows = normalizeRows(json, headerHints);
+  console.debug(`[apiRead] ${sheet} -> ${rows.length} row(s)`, rows);
+  return rows;
+}
+
+async function apiWrite(sheet, values){
+  const res = await fetch(CONFIG.WEB_APP_URL, {
+    method: "POST",
+    // text/plain avoids a CORS preflight against Apps Script's exec endpoint
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ sheet, values })
+  });
+  if(!res.ok) throw new Error(`Write failed for "${sheet}" (HTTP ${res.status})`);
+  return res.json().catch(() => ({}));
+}
+
+// Returns true if the row's first cell looks like a column header (e.g. "Username", "ID", "Date")
+// rather than real data, based on a small set of expected header words for that sheet.
+function looksLikeHeader(row, hints){
+  if(!hints || !hints.length) return false;
+  const cell = String(row[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  return hints.some(h => cell === h);
+}
+
+// Accepts a few common Apps Script response shapes and returns a plain 2D array of rows.
+function normalizeRows(json, headerHints){
+  let rows = json;
+  if(json && typeof json === "object" && !Array.isArray(json)){
+    rows = json.data || json.rows || json.values || json.result || [];
+  }
+  if(!Array.isArray(rows)) rows = [];
+
+  if(rows.length && Array.isArray(rows[0])){
+    let stripHeader;
+    if(CONFIG.HAS_HEADER_ROW === true) stripHeader = true;
+    else if(CONFIG.HAS_HEADER_ROW === false) stripHeader = false;
+    else stripHeader = looksLikeHeader(rows[0], headerHints);
+
+    if(stripHeader) rows = rows.slice(1);
+  }
+  return rows;
+}
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const state = {
+  user: null,          // { username, role, name }
+  employees: [],       // [{ id, name, department, contact }]
+  attendanceRows: []   // [{ date, employeeId, name, status }]
+};
+
+/* =====================================================================
+   TOASTS
+   ===================================================================== */
+function toast(message, type = "default"){
+  const wrap = document.getElementById("toastWrap");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = message;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+/* =====================================================================
+   LOGIN
+   ===================================================================== */
+const loginForm = document.getElementById("loginForm");
+const loginError = document.getElementById("loginError");
+const loginBtn = document.getElementById("loginBtn");
+const loginBtnText = document.getElementById("loginBtnText");
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.classList.remove("show");
+  const username = document.getElementById("username").value.trim();
+  const password = document.getElementById("password").value;
+
+  loginBtn.disabled = true;
+  loginBtnText.innerHTML = `<span class="spinner"></span>`;
+
+  try{
+    const users = await apiRead(CONFIG.SHEETS.USERS, ["username", "user", "userid", "email"]);
+    const c = CONFIG.COLS.USERS;
+    const match = users.find(row =>
+      String(row[c.username]).trim().toLowerCase() === username.toLowerCase() &&
+      String(row[c.password]).trim() === password.trim()
+    );
+
+    if(!match){
+      console.debug("[login] no match. Entered username:", username, "| Rows checked:", users.length);
+    }
+    if(!match){
+      loginError.textContent = "Invalid username or password.";
+      loginError.classList.add("show");
+      loginBtn.disabled = false;
+      loginBtnText.textContent = "Sign In";
+      return;
+    }
+
+    state.user = {
+      username: match[c.username],
+      role: match[c.role] || "user",
+      name: match[c.name] || match[c.username]
+    };
+
+    enterApp();
+  }catch(err){
+    loginError.textContent = "Could not reach the server. Please try again.";
+    loginError.classList.add("show");
+    console.error(err);
+  }finally{
+    loginBtn.disabled = false;
+    loginBtnText.textContent = "Sign In";
+  }
+});
+
+function enterApp(){
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("appShell").classList.remove("hidden");
+
+  document.getElementById("chipName").textContent = state.user.name;
+  document.getElementById("chipRole").textContent = state.user.role;
+  document.getElementById("chipAvatar").textContent = (state.user.name || "?").charAt(0).toUpperCase();
+
+  const today = new Date().toISOString().slice(0, 10);
+  document.getElementById("attendanceDate").value = today;
+  document.getElementById("filterDate").value = "";
+
+  loadEmployees();
+  loadAttendance();
+}
+
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  state.user = null;
+  document.getElementById("appShell").classList.add("hidden");
+  document.getElementById("loginScreen").classList.remove("hidden");
+  loginForm.reset();
+});
+
+/* =====================================================================
+   REGISTRATION
+   ===================================================================== */
+const registerModal = document.getElementById("registerModal");
+const registerError = document.getElementById("registerError");
+const registerForm = document.getElementById("registerForm");
+const registerBtn = document.getElementById("registerBtn");
+const registerBtnText = document.getElementById("registerBtnText");
+
+document.getElementById("openRegisterLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  registerError.classList.remove("show");
+  registerForm.reset();
+  registerModal.classList.remove("hidden");
+});
+
+document.getElementById("cancelRegisterBtn").addEventListener("click", () => {
+  registerModal.classList.add("hidden");
+});
+registerModal.addEventListener("click", (e) => {
+  if(e.target === registerModal) registerModal.classList.add("hidden");
+});
+
+registerForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  registerError.classList.remove("show");
+
+  const name = document.getElementById("regName").value.trim();
+  const username = document.getElementById("regUsername").value.trim();
+  const role = document.getElementById("regRole").value;
+  const password = document.getElementById("regPassword").value;
+  const confirmPassword = document.getElementById("regConfirmPassword").value;
+
+  if(password !== confirmPassword){
+    registerError.textContent = "Passwords do not match.";
+    registerError.classList.add("show");
+    return;
+  }
+  if(password.length < 4){
+    registerError.textContent = "Password should be at least 4 characters.";
+    registerError.classList.add("show");
+    return;
+  }
+
+  registerBtn.disabled = true;
+  registerBtnText.innerHTML = `<span class="spinner"></span>`;
+
+  try{
+    // Check the username isn't already taken before writing.
+    const existingUsers = await apiRead(CONFIG.SHEETS.USERS, ["username", "user", "userid", "email"]);
+    const c = CONFIG.COLS.USERS;
+    const taken = existingUsers.some(row => String(row[c.username]).trim().toLowerCase() === username.toLowerCase());
+
+    if(taken){
+      registerError.textContent = "That username is already taken. Please choose another.";
+      registerError.classList.add("show");
+      return;
+    }
+
+    // Column order must match CONFIG.COLS.USERS: username, password, role, name
+    await apiWrite(CONFIG.SHEETS.USERS, [username, password, role, name]);
+
+    toast("Account created. Logging you in…", "success");
+    registerModal.classList.add("hidden");
+
+    state.user = { username, role, name };
+    enterApp();
+  }catch(err){
+    registerError.textContent = "Could not create the account. Please try again.";
+    registerError.classList.add("show");
+    console.error(err);
+  }finally{
+    registerBtn.disabled = false;
+    registerBtnText.textContent = "Create Account";
+  }
+});
+
+/* =====================================================================
+   TABS
+   ===================================================================== */
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if(!btn) return;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.querySelectorAll("main > section").forEach(sec => sec.classList.add("hidden"));
+  document.getElementById(`tab-${btn.dataset.tab}`).classList.remove("hidden");
+});
+
+/* =====================================================================
+   EMPLOYEES (Dashboard)
+   ===================================================================== */
+async function loadEmployees(){
+  const tbody = document.getElementById("employeeTableBody");
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="loading-row"><span class="spinner spinner-dark"></span>Loading employees…</span></td></tr>`;
+
+  try{
+    const rows = await apiRead(CONFIG.SHEETS.EMPLOYEES, ["employeeid", "id", "empid"]);
+    const c = CONFIG.COLS.EMPLOYEES;
+    state.employees = rows.map(r => ({
+      id: r[c.id], name: r[c.name], department: r[c.department], contact: r[c.contact]
+    })).filter(e => e.id !== undefined && e.id !== "");
+
+    renderEmployeeTable();
+    populateAttendanceTable();
+    populateReportEmployeeFilter();
+    document.getElementById("statTotal").textContent = state.employees.length;
+  }catch(err){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Couldn't load employees. Check the Web App URL and try again.</td></tr>`;
+    console.error(err);
+  }
+}
+
+function renderEmployeeTable(){
+  const tbody = document.getElementById("employeeTableBody");
+  if(!state.employees.length){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="4">No employees yet. Click "Add Employee" to create one.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = state.employees.map(e => `
+    <tr>
+      <td>${escapeHtml(e.id)}</td>
+      <td>${escapeHtml(e.name)}</td>
+      <td>${escapeHtml(e.department || "—")}</td>
+      <td>${escapeHtml(e.contact || "—")}</td>
+    </tr>
+  `).join("");
+}
+
+document.getElementById("refreshDashboardBtn").addEventListener("click", () => {
+  loadEmployees();
+  loadAttendance();
+});
+
+/* ---- Add Employee modal ---- */
+const addEmployeeModal = document.getElementById("addEmployeeModal");
+document.getElementById("openAddEmployeeBtn").addEventListener("click", () => addEmployeeModal.classList.remove("hidden"));
+document.getElementById("cancelAddEmployeeBtn").addEventListener("click", () => addEmployeeModal.classList.add("hidden"));
+addEmployeeModal.addEventListener("click", (e) => { if(e.target === addEmployeeModal) addEmployeeModal.classList.add("hidden"); });
+
+document.getElementById("addEmployeeForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const saveBtn = document.getElementById("saveEmployeeBtn");
+  const id = document.getElementById("newEmpId").value.trim();
+  const name = document.getElementById("newEmpName").value.trim();
+  const dept = document.getElementById("newEmpDept").value.trim();
+  const contact = document.getElementById("newEmpContact").value.trim();
+
+  saveBtn.disabled = true;
+  saveBtn.innerHTML = `<span class="spinner"></span>`;
+  try{
+    await apiWrite(CONFIG.SHEETS.EMPLOYEES, [id, name, dept, contact]);
+    toast("Employee added successfully.", "success");
+    addEmployeeModal.classList.add("hidden");
+    document.getElementById("addEmployeeForm").reset();
+    loadEmployees();
+  }catch(err){
+    toast("Could not add employee. Please try again.", "error");
+    console.error(err);
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = "Save Employee";
+  }
+});
+
+/* =====================================================================
+   ATTENDANCE MARKING
+   ===================================================================== */
+function populateAttendanceTable(){
+  const tbody = document.getElementById("attendanceTableBody");
+  if(!state.employees.length){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Add employees first to mark attendance.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = state.employees.map(emp => `
+    <tr data-emp-id="${escapeHtml(emp.id)}" data-emp-name="${escapeHtml(emp.name)}">
+      <td>${escapeHtml(emp.id)}</td>
+      <td>${escapeHtml(emp.name)}</td>
+      <td>
+        <select class="status-select" data-status="Present">
+          <option value="Present" selected>Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Leave">Leave</option>
+        </select>
+      </td>
+    </tr>
+  `).join("");
+
+  tbody.querySelectorAll("select.status-select").forEach(sel => {
+    sel.addEventListener("change", () => sel.setAttribute("data-status", sel.value));
+  });
+}
+
+document.getElementById("bulkStatus").addEventListener("change", (e) => {
+  const val = e.target.value;
+  if(!val) return;
+  document.querySelectorAll("#attendanceTableBody select.status-select").forEach(sel => {
+    sel.value = val;
+    sel.setAttribute("data-status", val);
+  });
+  e.target.value = "";
+});
+
+document.getElementById("refreshAttendanceBtn").addEventListener("click", loadEmployees);
+
+document.getElementById("submitAttendanceBtn").addEventListener("click", async () => {
+  const date = document.getElementById("attendanceDate").value;
+  const statusText = document.getElementById("submitStatusText");
+  if(!date){
+    toast("Please choose a date first.", "error");
+    return;
+  }
+
+  const rows = Array.from(document.querySelectorAll("#attendanceTableBody tr[data-emp-id]"));
+  if(!rows.length){
+    toast("No employees to mark attendance for.", "error");
+    return;
+  }
+
+  const btn = document.getElementById("submitAttendanceBtn");
+  btn.disabled = true;
+  let done = 0;
+  let failed = 0;
+
+  for(const row of rows){
+    const empId = row.dataset.empId;
+    const empName = row.dataset.empName;
+    const status = row.querySelector("select.status-select").value;
+    statusText.textContent = `Submitting ${done + failed + 1} of ${rows.length}…`;
+    try{
+      await apiWrite(CONFIG.SHEETS.ATTENDANCE, [date, empId, empName, status]);
+      done++;
+    }catch(err){
+      failed++;
+      console.error("Failed for", empId, err);
+    }
+  }
+
+  btn.disabled = false;
+  statusText.textContent = "";
+
+  if(failed === 0){
+    toast(`Attendance submitted for ${done} employee(s).`, "success");
+  }else{
+    toast(`${done} submitted, ${failed} failed. Please retry the failed rows.`, "error");
+  }
+  loadAttendance();
+});
+
+/* =====================================================================
+   REPORTS
+   ===================================================================== */
+async function loadAttendance(){
+  const tbody = document.getElementById("reportTableBody");
+  tbody.innerHTML = `<tr class="empty-row"><td colspan="4"><span class="loading-row"><span class="spinner spinner-dark"></span>Loading attendance records…</span></td></tr>`;
+
+  try{
+    const rows = await apiRead(CONFIG.SHEETS.ATTENDANCE, ["date"]);
+    const c = CONFIG.COLS.ATTENDANCE;
+    state.attendanceRows = rows.map(r => ({
+      date: r[c.date], employeeId: r[c.employeeId], name: r[c.name], status: r[c.status]
+    })).filter(r => r.employeeId !== undefined && r.employeeId !== "");
+
+    computeTodayStats();
+    renderReportTable();
+  }catch(err){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Couldn't load attendance records. Check the Web App URL and try again.</td></tr>`;
+    console.error(err);
+  }
+}
+
+function computeTodayStats(){
+  const today = new Date().toISOString().slice(0, 10);
+  const todays = state.attendanceRows.filter(r => normalizeDate(r.date) === today);
+  document.getElementById("statPresent").textContent = todays.filter(r => r.status === "Present").length;
+  document.getElementById("statAbsent").textContent = todays.filter(r => r.status === "Absent").length;
+  document.getElementById("statLeave").textContent = todays.filter(r => r.status === "Leave").length;
+}
+
+function normalizeDate(val){
+  if(!val) return "";
+  // Handles both "YYYY-MM-DD" strings and Apps Script's ISO datetime strings.
+  const d = new Date(val);
+  if(isNaN(d)) return String(val).slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+function populateReportEmployeeFilter(){
+  const sel = document.getElementById("filterEmployee");
+  const current = sel.value;
+  sel.innerHTML = `<option value="">All employees</option>` +
+    state.employees.map(e => `<option value="${escapeHtml(e.id)}">${escapeHtml(e.name)} (${escapeHtml(e.id)})</option>`).join("");
+  sel.value = current;
+}
+
+function renderReportTable(){
+  const tbody = document.getElementById("reportTableBody");
+  const dateFilter = document.getElementById("filterDate").value;
+  const empFilter = document.getElementById("filterEmployee").value;
+  const statusFilter = document.getElementById("filterStatus").value;
+
+  let rows = state.attendanceRows.slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  if(dateFilter) rows = rows.filter(r => normalizeDate(r.date) === dateFilter);
+  if(empFilter) rows = rows.filter(r => String(r.employeeId) === empFilter);
+  if(statusFilter) rows = rows.filter(r => r.status === statusFilter);
+
+  if(!rows.length){
+    tbody.innerHTML = `<tr class="empty-row"><td colspan="4">No attendance records match these filters.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${escapeHtml(normalizeDate(r.date) || r.date)}</td>
+      <td>${escapeHtml(r.employeeId)}</td>
+      <td>${escapeHtml(r.name)}</td>
+      <td>${statusBadge(r.status)}</td>
+    </tr>
+  `).join("");
+}
+
+function statusBadge(status){
+  if(status === "Present") return `<span class="badge badge-ok">Present</span>`;
+  if(status === "Absent") return `<span class="badge badge-bad">Absent</span>`;
+  if(status === "Leave") return `<span class="badge badge-warn">Leave</span>`;
+  return `<span class="badge badge-neutral">${escapeHtml(status || "—")}</span>`;
+}
+
+document.getElementById("filterDate").addEventListener("change", renderReportTable);
+document.getElementById("filterEmployee").addEventListener("change", renderReportTable);
+document.getElementById("filterStatus").addEventListener("change", renderReportTable);
+document.getElementById("clearFiltersBtn").addEventListener("click", () => {
+  document.getElementById("filterDate").value = "";
+  document.getElementById("filterEmployee").value = "";
+  document.getElementById("filterStatus").value = "";
+  renderReportTable();
+});
+document.getElementById("refreshReportBtn").addEventListener("click", loadAttendance);
+
+/* =====================================================================
+   UTIL
+   ===================================================================== */
+function escapeHtml(str){
+  if(str === undefined || str === null) return "";
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+</script>
+</body>
+</html>
