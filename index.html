@@ -216,6 +216,7 @@ tr:hover td{background-color:var(--accent-soft) !important;}
 .scroll-box{overflow-x:auto; overflow-y:auto; max-height:400px; border:1px solid var(--border); border-radius:14px;}
 .map-link{color:var(--accent); text-decoration:none; font-weight:600;}
 .map-link:hover{text-decoration:underline;}
+.loc-pending{color:var(--sub-text); font-size:12px; font-style:italic;}
 
 .pagination{display:flex; align-items:center; justify-content:center; gap:10px; margin:14px 0 4px;}
 .pagination button{width:auto; padding:7px 14px; font-size:12.5px; margin-top:0;}
@@ -452,6 +453,8 @@ select#attendance-status{cursor:pointer;}
             <option value="Absent">Absent</option>
             <option value="Leave">Leave</option>
             <option value="Tour">Tour</option>
+            <option value="Pending Leave">Pending Leave</option>
+            <option value="Leave Rejected">Leave Rejected</option>
           </select>
         </div>
 
@@ -586,7 +589,6 @@ const employees = {
   "EDU/1352": "Digambar Singh",
   "EDU/1353": "Priyanshu Rajput",
   "EDU/1354": "Rishabh Pundir",
-  "EDU/1612": "Alvind soni",
   "EDU/1355": "Bharat Bhushan Pachori"
 };
 const DEFAULT_PASSWORD = "@2026";
@@ -1088,7 +1090,11 @@ function markAttendance(e){
 
       msgDiv.innerHTML = '<span class="loader"></span> Saving to Google Sheet...';
       showFullLoader("Loading Attendance...");
-      sendAttendance(statusSelected, mapsLink, msgDiv, submitBtn, address);
+      // Store both the map link and the readable address in the single
+      // "Location" column (separated by ||) so no backend/sheet change is
+      // needed, yet reports can show the full place name AND link to the map.
+      const combinedLocation = `${mapsLink}||${address}`;
+      sendAttendance(statusSelected, combinedLocation, msgDiv, submitBtn);
     },
     (error) => {
       let errorMsg = "Location access denied. Please allow location permissions to mark Present.";
@@ -1101,35 +1107,31 @@ function markAttendance(e){
   );
 }
 
-function sendAttendance(status, location, msgDiv, submitBtn, address){
-  const payload = { action:"addAttendance", empId:currentUser.id, name:currentUser.name, status, location, address: address || "" };
+function sendAttendance(status, location, msgDiv, submitBtn, customMsg, customOverlay){
+  const payload = { action:"addAttendance", empId:currentUser.id, name:currentUser.name, status, location };
   fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) })
     .then(res => res.json())
     .then(data => {
       if (data && data.success === false) throw new Error(data.error || "Server rejected the request.");
-      msgDiv.innerText = `Attendance marked as ${status}.` + (location !== "N/A" ? " Location recorded." : "");
+      msgDiv.innerText = customMsg || (`Attendance marked as ${status}.` + (location !== "N/A" ? " Location recorded." : ""));
       msgDiv.className = "status success";
       hideFullLoader();
-      showSuccessOverlay("Attendance Submitted Successfully");
+      showSuccessOverlay(customOverlay || "Attendance Submitted Successfully");
       loadEmployeeHistory(currentUser.id);
     })
     .catch(err => { msgDiv.innerText = "Could not save to Google Sheet: " + err.message; msgDiv.className = "status error"; hideFullLoader(); })
     .finally(() => { submitBtn.disabled = false; });
 }
 
+/* Leave requests are stored as a normal attendance row with status
+   "Pending Leave" (works with the existing addAttendance/getAttendance
+   backend — no new sheet/action required). The Admin's Leave Approvals
+   tab looks at each employee's MOST RECENT row: if it's still
+   "Pending Leave", it's awaiting a decision. Approve/Reject simply adds
+   a new row ("Leave" or "Leave Rejected"), which becomes the newest row
+   and clears it from the pending list. */
 function sendLeaveRequest(msgDiv, submitBtn){
-  const payload = { action:"requestLeave", empId:currentUser.id, name:currentUser.name };
-  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) })
-    .then(res => res.json())
-    .then(data => {
-      if (data && data.success === false) throw new Error(data.error || "Could not submit leave request.");
-      msgDiv.innerText = "Leave request sent to Admin for approval.";
-      msgDiv.className = "status success";
-      hideFullLoader();
-      showSuccessOverlay("Leave Request Submitted");
-    })
-    .catch(err => { msgDiv.innerText = "Could not submit leave request: " + err.message; msgDiv.className = "status error"; hideFullLoader(); })
-    .finally(() => { submitBtn.disabled = false; });
+  sendAttendance("Pending Leave", "N/A", msgDiv, submitBtn, "Leave request sent to Admin for approval.", "Leave Request Submitted");
 }
 
 /* =====================================================================
@@ -1184,20 +1186,23 @@ function renderMyMonthlyReport(rows, monthVal){
 
   const tbody = document.getElementById("emp-monthly-tbody");
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--sub-text);">No records for this month.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const hydrationQueue = [];
   tbody.innerHTML = rows.slice().reverse().map(r => {
     const badgeClass = badgeMap[r.status] || "badge-absent";
-    const loc = r.location && r.location !== "N/A" ? `<a class="map-link" href="${r.location}" target="_blank" rel="noopener">View Map</a>` : "—";
+    const loc = locationCellHtml(r.location, hydrationQueue);
     return `<tr><td>${r.timestamp || r.date || ""}</td><td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
+  hydrateLocationCells(hydrationQueue);
 }
 function downloadMyReportCSV(e){
   if (e) e.preventDefault();
   if (!myMonthlyRows.length) { alert("No records loaded. Click 'View Month' first."); return; }
-  const header = ["Date & Time", "Status", "Location"];
+  const header = ["Date & Time", "Status", "Location Link"];
   const csvRows = [header.join(",")];
   myMonthlyRows.forEach(r => {
-    const row = [r.timestamp||r.date||"", r.status||"", r.location||""].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    const parts = extractLocationParts(r.location);
+    const row = [r.timestamp||r.date||"", r.status||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
     csvRows.push(row.join(","));
   });
   const blob = new Blob([csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
@@ -1206,19 +1211,22 @@ function downloadMyReportCSV(e){
   link.href = url; link.download = `my_attendance_${currentUser.id.replace("/","_")}.csv`;
   document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
 }
-function downloadMyReportPDF(e){
+async function downloadMyReportPDF(e){
   if (e) e.preventDefault();
   if (!myMonthlyRows.length) { alert("No records loaded. Click 'View Month' first."); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(14); doc.text(`My Attendance Report — ${currentUser.name}`, 14, 16);
-  doc.setFontSize(10); doc.text(`Employee ID: ${currentUser.id}  |  Generated: ${new Date().toLocaleString()}`, 14, 22);
-  doc.autoTable({
-    startY: 28,
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(myMonthlyRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(
+    `My Attendance Report — ${currentUser.name}`,
+    `Employee ID: ${currentUser.id}  |  Generated: ${new Date().toLocaleString()}`
+  );
+  doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Status","Location"]],
-    body: myMonthlyRows.map(r => [r.timestamp||r.date||"", r.status||"", r.location||""]),
-    styles:{ fontSize:9 }
-  });
+    body: myMonthlyRows.map((r,i) => [r.timestamp||r.date||"", r.status||"", labels[i] || "—"]),
+    didDrawCell: locationLinkHook(myMonthlyRows, 2)
+  }));
+  finishBrandedPDF(doc);
   doc.save(`my_attendance_${currentUser.id.replace("/","_")}.pdf`);
 }
 
@@ -1289,6 +1297,77 @@ function switchAdminTab(tab){
    cannot reliably parse this in every browser, so all date-based
    filtering/matching in this file goes through this helper instead.
    ===================================================================== */
+/* =====================================================================
+   LOCATION HELPER
+   The "Location" column stores "<mapsUrl>||<readable address>" for new
+   entries (packed into one string so no backend/sheet change is
+   needed). Older entries saved before this only have the map link — for
+   those, we pull the lat/lon straight out of the link and reverse-
+   geocode it on the fly, so even old rows can show a real place name.
+   Results are cached by coordinate so repeat lookups are instant.
+   ===================================================================== */
+const geocodeCache = {};
+function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+function extractLocationParts(raw){
+  if (!raw || raw === "N/A") return null;
+  const str = String(raw);
+  const sep = str.indexOf("||");
+  if (sep === -1) return { url: str, label: null };
+  return { url: str.slice(0, sep), label: str.slice(sep + 2) || null };
+}
+function extractLatLon(url){
+  if (!url) return null;
+  const m = String(url).match(/q=([-\d.]+),([-\d.]+)/);
+  if (!m) return null;
+  return { lat: m[1], lon: m[2] };
+}
+// Resolves the best display label for a location value, geocoding lat/lon
+// from the link if no address was baked in already. Always resolves
+// (never rejects) — worst case it falls back to "View on Map".
+async function resolveLocationLabel(raw){
+  const parts = extractLocationParts(raw);
+  if (!parts) return null;
+  if (parts.label) return parts.label;
+  const ll = extractLatLon(parts.url);
+  if (!ll) return "View on Map";
+  const key = `${ll.lat},${ll.lon}`;
+  if (geocodeCache[key]) return geocodeCache[key];
+  try{
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${ll.lat}&lon=${ll.lon}&zoom=16`);
+    const data = await res.json();
+    const label = (data && data.display_name) ? data.display_name : "View on Map";
+    geocodeCache[key] = label;
+    await sleep(120); // be polite to the free geocoding service
+    return label;
+  }catch(err){
+    return "View on Map";
+  }
+}
+// Synchronous HTML for a location cell: shows the label immediately if
+// already known, otherwise a "Locating..." placeholder that gets
+// swapped in once resolveLocationLabel() finishes (see hydrateLocationCells).
+let locCellCounter = 0;
+function locationCellHtml(raw, hydrationQueue){
+  const parts = extractLocationParts(raw);
+  if (!parts) return "—";
+  if (parts.label) {
+    return `<a class="map-link" href="${parts.url}" target="_blank" rel="noopener" title="Open in Google Maps">${parts.label}</a>`;
+  }
+  const id = `loc-${++locCellCounter}`;
+  if (hydrationQueue) hydrationQueue.push({ id, raw, url: parts.url });
+  return `<span id="${id}" class="loc-pending">📍 Locating...</span>`;
+}
+function hydrateLocationCells(queue){
+  queue.forEach(item => {
+    resolveLocationLabel(item.raw).then(label => {
+      const el = document.getElementById(item.id);
+      if (!el) return;
+      el.outerHTML = `<a class="map-link" href="${item.url}" target="_blank" rel="noopener" title="Open in Google Maps">${label}</a>`;
+    });
+  });
+}
+
 function parseFlexibleDate(input){
   if (input instanceof Date) return input;
   if (typeof input === "number") return new Date(input);
@@ -1351,28 +1430,33 @@ function renderTodayTable(rows){
 
   const tbody = document.getElementById("today-tbody");
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No attendance marked yet today.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const hydrationQueue = [];
   tbody.innerHTML = rows.slice().reverse().map(r => {
     const badgeClass = badgeMap[r.status] || "badge-absent";
-    const loc = r.location && r.location !== "N/A" ? `<a class="map-link" href="${r.location}" target="_blank" rel="noopener">View Map</a>` : "—";
+    const loc = locationCellHtml(r.location, hydrationQueue);
     return `<tr><td>${r.timestamp || r.date || ""}</td><td>${r.empId || r.employeeId || ""}</td><td>${r.name || ""}</td>
       <td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
+  hydrateLocationCells(hydrationQueue);
 }
-function downloadTodayPDF(e){
+async function downloadTodayPDF(e){
   if (e) e.preventDefault();
   if (!todayRows.length) { alert("No data loaded. Click 'Refresh Today' first."); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
   const now = new Date();
-  doc.setFontSize(14); doc.text(`Today's Attendance — ${now.toLocaleDateString()}`, 14, 16);
-  doc.setFontSize(10); doc.text(`Generated: ${now.toLocaleString()}`, 14, 22);
-  doc.autoTable({
-    startY: 28,
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(todayRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(
+    `Today's Attendance — ${now.toLocaleDateString()}`,
+    `Generated: ${now.toLocaleString()}`
+  );
+  doc.autoTable(brandedTableOptions({
     head: [["Time","Emp ID","Name","Status","Location"]],
-    body: todayRows.map(r => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", r.location||""]),
-    styles:{ fontSize:8 }
-  });
+    body: todayRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", labels[i] || "—"]),
+    didDrawCell: locationLinkHook(todayRows, 4)
+  }));
+  finishBrandedPDF(doc);
   doc.save(`today_attendance_${todayDateKey(now)}.pdf`);
 }
 
@@ -1461,13 +1545,15 @@ function goPage(p){ currentPage = p; renderPage(); }
 function renderReportTable(rows){
   const tbody = document.getElementById("report-tbody");
   if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No records found.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const hydrationQueue = [];
   tbody.innerHTML = rows.map(r => {
     const badgeClass = badgeMap[r.status] || "badge-absent";
-    const loc = r.location && r.location !== "N/A" ? `<a class="map-link" href="${r.location}" target="_blank" rel="noopener">View Map</a>` : "—";
+    const loc = locationCellHtml(r.location, hydrationQueue);
     return `<tr><td>${r.timestamp || r.date || ""}</td><td>${r.empId || r.employeeId || ""}</td><td>${r.name || ""}</td>
       <td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
+  hydrateLocationCells(hydrationQueue);
 }
 function renderStats(rows){
   const present = rows.filter(r => r.status === "Present").length;
@@ -1486,6 +1572,79 @@ function setPct(key, count, total){
   const pct = Math.round((count / total) * 100);
   document.getElementById(`pct-${key}-txt`).innerText = pct + "%";
   document.getElementById(`pct-${key}-bar`).style.width = pct + "%";
+}
+
+/* =====================================================================
+   BRANDED PDF HELPERS
+   Every exported PDF gets the company letterhead up top, the same
+   footer text as the web page, and colorful/professional table styling.
+   ===================================================================== */
+function locationLinkHook(rows, colIndex){
+  return function(data){
+    if (data.section === "body" && data.column.index === colIndex) {
+      const row = rows[data.row.index];
+      const parts = row ? extractLocationParts(row.location) : null;
+      if (parts && parts.url && parts.url !== "N/A") {
+        data.doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: parts.url });
+      }
+    }
+  };
+}
+
+function newBrandedPDF(reportTitle, metaLine){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Header band
+  doc.setFillColor(15, 23, 42); // navy
+  doc.rect(0, 0, pageWidth, 24, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(13);
+  doc.text("EDUQUITY CAREAR TECHNOLOGY PVT LTD", 14, 10);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(9);
+  doc.text("Attendance Management System", 14, 16.5);
+  doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString(), pageWidth - 14, 10, { align: "right" });
+
+  // Report title + meta line
+  doc.setTextColor(29, 78, 216); // accent blue
+  doc.setFont(undefined, "bold");
+  doc.setFontSize(13);
+  doc.text(reportTitle, 14, 33);
+  doc.setFont(undefined, "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  doc.text(metaLine, 14, 39);
+  doc.setTextColor(0, 0, 0);
+
+  return doc;
+}
+function brandedTableOptions(extra){
+  return Object.assign({
+    startY: 45,
+    styles: { fontSize: 8, textColor: [15, 23, 42], lineColor: [226, 232, 240], lineWidth: 0.1 },
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [239, 246, 255] },
+    margin: { bottom: 22 }
+  }, extra || {});
+}
+function finishBrandedPDF(doc){
+  const pageCount = doc.internal.getNumberOfPages();
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= pageCount; i++){
+    doc.setPage(i);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(14, pageHeight - 16, pageWidth - 14, pageHeight - 16);
+    doc.setFontSize(7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text("Attendance Management Portal · Version 3.0", 14, pageHeight - 10);
+    doc.text("© 2026 UPENDRA BAIS · Powered by Google Sheets", 14, pageHeight - 6);
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, pageHeight - 10, { align: "right" });
+  }
 }
 
 /* =====================================================================
@@ -1576,28 +1735,31 @@ function renderLeaderboard(){
 function exportExcel(e){
   if (e) e.preventDefault();
   if (!lastLoadedRows.length) { alert("No data loaded yet. Click 'Refresh Data' on Overview tab first."); return; }
-  const sheetData = lastLoadedRows.map(r => ({
-    "Date & Time": r.timestamp || r.date || "", "Emp ID": r.empId || r.employeeId || "",
-    "Name": r.name || "", "Status": r.status || "", "Location": r.location || ""
-  }));
+  const sheetData = lastLoadedRows.map(r => {
+    const parts = extractLocationParts(r.location);
+    return {
+      "Date & Time": r.timestamp || r.date || "", "Emp ID": r.empId || r.employeeId || "",
+      "Name": r.name || "", "Status": r.status || "", "Location Link": parts ? parts.url : ""
+    };
+  });
   const ws = XLSX.utils.json_to_sheet(sheetData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Attendance");
   XLSX.writeFile(wb, `attendance_report_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
-function exportMonthlySheetPDF(e){
+async function exportMonthlySheetPDF(e){
   if (e) e.preventDefault();
   if (!lastLoadedRows.length) { alert("No data loaded yet. Click 'Refresh Data' on Overview tab first."); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(14); doc.text("Monthly Attendance Sheet", 14, 16);
-  doc.setFontSize(10); doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 22);
-  doc.autoTable({
-    startY: 28,
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(lastLoadedRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF("Monthly Attendance Sheet", `Generated: ${new Date().toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Emp ID","Name","Status","Location"]],
-    body: lastLoadedRows.map(r => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", r.location||""]),
-    styles:{ fontSize:8 }
-  });
+    body: lastLoadedRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", labels[i] || "—"]),
+    didDrawCell: locationLinkHook(lastLoadedRows, 4)
+  }));
+  finishBrandedPDF(doc);
   doc.save(`monthly_attendance_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 function populateIndividualEmpSelect(){
@@ -1605,31 +1767,35 @@ function populateIndividualEmpSelect(){
   sel.innerHTML = '<option value="">Select an employee...</option>' +
     Object.entries(employees).map(([id,name]) => `<option value="${id}">${name} (${id})</option>`).join("");
 }
-function exportIndividualReport(e){
+async function exportIndividualReport(e){
   if (e) e.preventDefault();
   const empId = document.getElementById("individual-emp-select").value;
   if (!empId) { alert("Please select an employee."); return; }
   const rows = lastLoadedRows.filter(r => (r.empId || r.employeeId) === empId);
   if (!rows.length) { alert("No attendance records for this employee yet (or data not refreshed)."); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.setFontSize(14); doc.text(`Individual Attendance Report — ${employees[empId] || empId}`, 14, 16);
-  doc.setFontSize(10); doc.text(`Employee ID: ${empId}  |  Generated: ${new Date().toLocaleString()}`, 14, 22);
-  doc.autoTable({
-    startY: 28,
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(rows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(
+    `Individual Attendance Report — ${employees[empId] || empId}`,
+    `Employee ID: ${empId}  |  Generated: ${new Date().toLocaleString()}`
+  );
+  doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Status","Location"]],
-    body: rows.map(r => [r.timestamp||r.date||"", r.status||"", r.location||""]),
-    styles:{ fontSize:9 }
-  });
+    body: rows.map((r,i) => [r.timestamp||r.date||"", r.status||"", labels[i] || "—"]),
+    didDrawCell: locationLinkHook(rows, 2)
+  }));
+  finishBrandedPDF(doc);
   doc.save(`report_${empId.replace("/","_")}.pdf`);
 }
 function downloadCSV(e){
   if (e) e.preventDefault();
   if (!lastLoadedRows.length) { alert("No data loaded yet. Click 'Refresh Data' first."); return; }
-  const header = ["Date & Time", "Emp ID", "Name", "Status", "Location"];
+  const header = ["Date & Time", "Emp ID", "Name", "Status", "Location Link"];
   const csvRows = [header.join(",")];
   lastLoadedRows.forEach(r => {
-    const row = [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", r.location||""].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    const parts = extractLocationParts(r.location);
+    const row = [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
     csvRows.push(row.join(","));
   });
   const blob = new Blob([csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
@@ -1641,36 +1807,51 @@ function downloadCSV(e){
 
 /* =====================================================================
    LEAVE APPROVALS
+   Derived entirely from the existing Attendance sheet — for each
+   employee, whatever their MOST RECENT row says is their current
+   status. If that's "Pending Leave", it's awaiting a decision here.
    ===================================================================== */
 function loadLeaveRequests(e){
   if (e) e.preventDefault();
   const box = document.getElementById("leave-requests-list");
   box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
-  fetch(`${API_URL}?action=getLeaveRequests`)
+  fetch(`${API_URL}?action=getAttendance`)
     .then(res => res.json())
     .then(data => {
-      const reqs = (data && data.requests) || [];
-      if (!reqs.length) { box.innerHTML = '<div class="notif-empty">✅ No pending leave requests.</div>'; return; }
-      box.innerHTML = reqs.map(r => `
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      const latestByEmp = {};
+      rows.forEach(r => {
+        const id = r.empId || r.employeeId;
+        if (!id) return;
+        // Rows come in sheet order (oldest first), so the last one we
+        // see while looping IS the most recent for that employee.
+        latestByEmp[id] = r;
+      });
+      const pending = Object.values(latestByEmp).filter(r => r.status === "Pending Leave");
+      if (!pending.length) { box.innerHTML = '<div class="notif-empty">✅ No pending leave requests.</div>'; return; }
+      box.innerHTML = pending.map(r => {
+        const id = r.empId || r.employeeId;
+        return `
         <div class="notif-item">
           <div class="n-ic">🗓</div>
           <div style="flex:1;">
-            <div class="n-title">${r.name} (${r.empId})</div>
-            <div class="n-sub">Requested: ${r.timestamp || ""}</div>
+            <div class="n-title">${r.name || id} (${id})</div>
+            <div class="n-sub">Requested: ${r.timestamp || r.date || ""}</div>
             <div style="display:flex; gap:8px; margin-top:8px;">
-              <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="approveLeave('${r.id||r.empId}')">✔ Approve</button>
-              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="rejectLeave('${r.id||r.empId}')">✕ Reject</button>
+              <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="approveLeave('${id}','${(r.name||'').replace(/'/g,"\\'")}')">✔ Approve</button>
+              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="rejectLeave('${id}','${(r.name||'').replace(/'/g,"\\'")}')">✕ Reject</button>
             </div>
           </div>
-        </div>`).join("");
+        </div>`;
+      }).join("");
     })
-    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message} (backend setup required)</div>`; });
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed to load: ${err.message}</div>`; });
 }
-function approveLeave(requestId){ actOnLeave(requestId, "approve"); }
-function rejectLeave(requestId){ actOnLeave(requestId, "reject"); }
-function actOnLeave(requestId, decision){
-  showFullLoader(decision === "approve" ? "Approving..." : "Rejecting...");
-  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"decideLeave", requestId, decision }) })
+function approveLeave(empId, name){ actOnLeave(empId, name, "Leave"); }
+function rejectLeave(empId, name){ actOnLeave(empId, name, "Leave Rejected"); }
+function actOnLeave(empId, name, newStatus){
+  showFullLoader(newStatus === "Leave" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"addAttendance", empId, name, status:newStatus, location:"N/A" }) })
     .then(res => res.json())
     .then(data => { hideFullLoader(); if (data && data.success === false) throw new Error(data.error); loadLeaveRequests(); })
     .catch(err => { hideFullLoader(); alert("Could not update leave request: " + err.message); });
