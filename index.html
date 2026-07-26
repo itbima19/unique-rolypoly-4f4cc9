@@ -353,6 +353,30 @@ select#attendance-status{cursor:pointer;}
       <div id="photo-upload-status" class="status hidden"></div>
       <div id="late-alert-box" class="status warn hidden">⏰ You checked in late today.</div>
 
+      <div class="analytics-box hidden" id="edit-profile-box">
+        <div class="analytics-title">✏️ My Profile</div>
+        <div class="filters-box">
+          <div>
+            <label style="font-size:11px;">Mobile</label>
+            <input type="text" id="profile-mobile" placeholder="e.g. 9876543210">
+          </div>
+          <div>
+            <label style="font-size:11px;">Email</label>
+            <input type="email" id="profile-email" placeholder="you@company.com">
+          </div>
+          <div>
+            <label style="font-size:11px;">Joining Date</label>
+            <input type="date" id="profile-joining">
+          </div>
+          <div>
+            <label style="font-size:11px;">Date of Birth</label>
+            <input type="date" id="profile-dob">
+          </div>
+        </div>
+        <button class="btn-secondary" onclick="saveMyProfile(event)">💾 Save Profile</button>
+        <div id="profile-save-status" class="status hidden"></div>
+      </div>
+
       <div class="last-attendance hidden" id="last-attendance-box">
         <span>🕘 Last Attendance</span>
         <b id="last-attendance-text">—</b>
@@ -453,8 +477,6 @@ select#attendance-status{cursor:pointer;}
             <option value="Absent">Absent</option>
             <option value="Leave">Leave</option>
             <option value="Tour">Tour</option>
-            <option value="Pending Leave">Pending Leave</option>
-            <option value="Leave Rejected">Leave Rejected</option>
           </select>
         </div>
 
@@ -737,12 +759,67 @@ function renderProfileDropdown(){
       <div class="dp-row"><span class="k">Mobile</span><span class="v">${p.mobile || "Not set"}</span></div>
       <div class="dp-row"><span class="k">Email</span><span class="v">${p.email || "Not set"}</span></div>
       <div class="dp-row"><span class="k">Joining Date</span><span class="v">${p.joiningDate || "Not set"}</span></div>
+      <div class="dp-row"><span class="k">Date of Birth</span><span class="v">${p.dob || "Not set"}</span></div>
     </div>
     <div class="dp-actions">
+      <button class="btn-outline" onclick="openEditProfile(event)">✏️ Edit My Profile</button>
       <button class="btn-outline" onclick="openChangePassword(event)">🔑 Change Password</button>
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>`;
   setAvatar(document.getElementById("dp-avatar-emp"), currentUser.name, currentUser.photo);
+}
+
+function openEditProfile(e){
+  if (e) e.stopPropagation();
+  document.getElementById("profile-dropdown").classList.add("hidden");
+  const p = allProfiles[currentUser.id] || {};
+  document.getElementById("profile-mobile").value = p.mobile || "";
+  document.getElementById("profile-email").value = p.email || "";
+  document.getElementById("profile-joining").value = toDateInputValue(p.joiningDate);
+  document.getElementById("profile-dob").value = toDateInputValue(p.dob);
+  const box = document.getElementById("edit-profile-box");
+  box.classList.remove("hidden");
+  box.scrollIntoView({ behavior:"smooth", block:"center" });
+}
+// Converts a "dd MMM yyyy" style string (or anything Date can parse)
+// into the yyyy-MM-dd format an <input type="date"> needs.
+function toDateInputValue(str){
+  if (!str) return "";
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function saveMyProfile(e){
+  if (e) e.preventDefault();
+  const statusDiv = document.getElementById("profile-save-status");
+  const payload = {
+    action: "updateOwnProfile",
+    empId: currentUser.id,
+    name: currentUser.name,
+    mobile: document.getElementById("profile-mobile").value.trim(),
+    email: document.getElementById("profile-email").value.trim(),
+    joiningDate: document.getElementById("profile-joining").value,
+    dob: document.getElementById("profile-dob").value
+  };
+  statusDiv.innerHTML = '<span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Saving...';
+  statusDiv.className = "status info";
+  showFullLoader("Saving profile...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) })
+    .then(res => res.json())
+    .then(data => {
+      if (data && data.success === false) throw new Error(data.error || "Could not save profile.");
+      allProfiles[currentUser.id] = data.profile || payload;
+      document.getElementById("emp-department-tag").innerText = `🏬 ${(data.profile && data.profile.department) || "General"}`;
+      statusDiv.innerText = "Profile saved successfully.";
+      statusDiv.className = "status success";
+      hideFullLoader();
+      showSuccessOverlay("Profile Saved");
+    })
+    .catch(err => {
+      statusDiv.innerText = "Could not save profile: " + err.message;
+      statusDiv.className = "status error";
+      hideFullLoader();
+    });
 }
 
 function openChangePassword(e){
@@ -988,6 +1065,8 @@ function loginSuccess(empId, profile){
   document.getElementById("gps-box").classList.remove("show");
   document.getElementById("photo-upload-status").className = "status hidden";
   document.getElementById("late-alert-box").classList.add("hidden");
+  document.getElementById("edit-profile-box").classList.add("hidden");
+  document.getElementById("profile-save-status").className = "status hidden";
   const now = new Date();
   document.getElementById("emp-month-filter").value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
   document.getElementById("emp-monthly-summary").classList.add("hidden");
@@ -1154,7 +1233,7 @@ function loadEmployeeHistory(empId){
 }
 function renderEmployeeStats(rows){
   document.getElementById("emp-stat-present").innerText = rows.filter(r=>r.status==="Present").length;
-  document.getElementById("emp-stat-absent").innerText = rows.filter(r=>r.status==="Absent").length;
+  document.getElementById("emp-stat-absent").innerText = rows.filter(r=>displayStatus(r.status)==="Absent").length;
   document.getElementById("emp-stat-leave").innerText = rows.filter(r=>r.status==="Leave").length;
   document.getElementById("emp-stat-tour").innerText = rows.filter(r=>r.status==="Tour").length;
 }
@@ -1180,18 +1259,19 @@ function renderMyMonthlyReport(rows, monthVal){
   document.getElementById("emp-monthly-scrollbox").classList.remove("hidden");
   document.getElementById("emp-download-actions").classList.toggle("hidden", rows.length === 0);
   document.getElementById("emp-month-present").innerText = rows.filter(r=>r.status==="Present").length;
-  document.getElementById("emp-month-absent").innerText = rows.filter(r=>r.status==="Absent").length;
+  document.getElementById("emp-month-absent").innerText = rows.filter(r=>displayStatus(r.status)==="Absent").length;
   document.getElementById("emp-month-leave").innerText = rows.filter(r=>r.status==="Leave").length;
   document.getElementById("emp-month-tour").innerText = rows.filter(r=>r.status==="Tour").length;
 
   const tbody = document.getElementById("emp-monthly-tbody");
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:var(--sub-text);">No records for this month.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
   const hydrationQueue = [];
   tbody.innerHTML = rows.slice().reverse().map(r => {
-    const badgeClass = badgeMap[r.status] || "badge-absent";
+    const shown = displayStatus(r.status);
+    const badgeClass = badgeMap[shown] || "badge-absent";
     const loc = locationCellHtml(r.location, hydrationQueue);
-    return `<tr><td>${r.timestamp || r.date || ""}</td><td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
+    return `<tr><td>${r.timestamp || r.date || ""}</td><td><span class="badge ${badgeClass}">${shown || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
   hydrateLocationCells(hydrationQueue);
 }
@@ -1202,7 +1282,7 @@ function downloadMyReportCSV(e){
   const csvRows = [header.join(",")];
   myMonthlyRows.forEach(r => {
     const parts = extractLocationParts(r.location);
-    const row = [r.timestamp||r.date||"", r.status||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    const row = [r.timestamp||r.date||"", displayStatus(r.status)||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
     csvRows.push(row.join(","));
   });
   const blob = new Blob([csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
@@ -1223,7 +1303,7 @@ async function downloadMyReportPDF(e){
   );
   doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Status","Location"]],
-    body: myMonthlyRows.map((r,i) => [r.timestamp||r.date||"", r.status||"", labels[i] || "—"]),
+    body: myMonthlyRows.map((r,i) => [r.timestamp||r.date||"", displayStatus(r.status)||"", labels[i] || "—"]),
     didDrawCell: locationLinkHook(myMonthlyRows, 2)
   }));
   finishBrandedPDF(doc);
@@ -1308,6 +1388,16 @@ function switchAdminTab(tab){
    ===================================================================== */
 const geocodeCache = {};
 function sleep(ms){ return new Promise(res => setTimeout(res, ms)); }
+
+// A pending leave request is stored as "Pending Leave" so the Leave
+// Approvals tab can find it, but everywhere else (Overview, Today,
+// reports, stats, charts) it should just read as "Absent" until it's
+// actually approved. Once approved it becomes "Leave"; once rejected it
+// becomes "Absent" outright — so this mapping only ever matters for the
+// still-undecided in-between state.
+function displayStatus(rawStatus){
+  return rawStatus === "Pending Leave" ? "Absent" : rawStatus;
+}
 
 function extractLocationParts(raw){
   if (!raw || raw === "N/A") return null;
@@ -1424,19 +1514,20 @@ function loadTodayAttendance(e){
 }
 function renderTodayTable(rows){
   document.getElementById("today-stat-present").innerText = rows.filter(r=>r.status==="Present").length;
-  document.getElementById("today-stat-absent").innerText = rows.filter(r=>r.status==="Absent").length;
+  document.getElementById("today-stat-absent").innerText = rows.filter(r=>displayStatus(r.status)==="Absent").length;
   document.getElementById("today-stat-leave").innerText = rows.filter(r=>r.status==="Leave").length;
   document.getElementById("today-stat-tour").innerText = rows.filter(r=>r.status==="Tour").length;
 
   const tbody = document.getElementById("today-tbody");
   if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No attendance marked yet today.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
   const hydrationQueue = [];
   tbody.innerHTML = rows.slice().reverse().map(r => {
-    const badgeClass = badgeMap[r.status] || "badge-absent";
+    const shown = displayStatus(r.status);
+    const badgeClass = badgeMap[shown] || "badge-absent";
     const loc = locationCellHtml(r.location, hydrationQueue);
     return `<tr><td>${r.timestamp || r.date || ""}</td><td>${r.empId || r.employeeId || ""}</td><td>${r.name || ""}</td>
-      <td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
+      <td><span class="badge ${badgeClass}">${shown || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
   hydrateLocationCells(hydrationQueue);
 }
@@ -1453,7 +1544,7 @@ async function downloadTodayPDF(e){
   );
   doc.autoTable(brandedTableOptions({
     head: [["Time","Emp ID","Name","Status","Location"]],
-    body: todayRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", labels[i] || "—"]),
+    body: todayRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", labels[i] || "—"]),
     didDrawCell: locationLinkHook(todayRows, 4)
   }));
   finishBrandedPDF(doc);
@@ -1503,7 +1594,7 @@ function applyFilters(){
     const id = (r.empId || r.employeeId || "").toLowerCase();
     const ts = r.timestamp || r.date || "";
     if (q && !name.includes(q) && !id.includes(q)) return false;
-    if (statusVal && r.status !== statusVal) return false;
+    if (statusVal && displayStatus(r.status) !== statusVal) return false;
     if (dateVal && !parseDateMatches(ts, dateVal)) return false;
     if (monthVal && !parseMonthMatches(ts, monthVal)) return false;
     return true;
@@ -1545,19 +1636,20 @@ function goPage(p){ currentPage = p; renderPage(); }
 function renderReportTable(rows){
   const tbody = document.getElementById("report-tbody");
   if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No records found.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour", "Pending Leave":"badge-pending", "Leave Rejected":"badge-absent" };
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
   const hydrationQueue = [];
   tbody.innerHTML = rows.map(r => {
-    const badgeClass = badgeMap[r.status] || "badge-absent";
+    const shown = displayStatus(r.status);
+    const badgeClass = badgeMap[shown] || "badge-absent";
     const loc = locationCellHtml(r.location, hydrationQueue);
     return `<tr><td>${r.timestamp || r.date || ""}</td><td>${r.empId || r.employeeId || ""}</td><td>${r.name || ""}</td>
-      <td><span class="badge ${badgeClass}">${r.status || ""}</span></td><td>${loc}</td></tr>`;
+      <td><span class="badge ${badgeClass}">${shown || ""}</span></td><td>${loc}</td></tr>`;
   }).join("");
   hydrateLocationCells(hydrationQueue);
 }
 function renderStats(rows){
   const present = rows.filter(r => r.status === "Present").length;
-  const absent = rows.filter(r => r.status === "Absent").length;
+  const absent = rows.filter(r => displayStatus(r.status) === "Absent").length;
   const leave = rows.filter(r => r.status === "Leave").length;
   const tour = rows.filter(r => r.status === "Tour").length;
   const total = rows.length || 1;
@@ -1660,7 +1752,7 @@ function renderCharts(){
   if (!window.Chart) return;
   const c = chartColors();
   const present = lastLoadedRows.filter(r=>r.status==="Present").length;
-  const absent = lastLoadedRows.filter(r=>r.status==="Absent").length;
+  const absent = lastLoadedRows.filter(r=>displayStatus(r.status)==="Absent").length;
   const leave = lastLoadedRows.filter(r=>r.status==="Leave").length;
   const tour = lastLoadedRows.filter(r=>r.status==="Tour").length;
 
@@ -1756,7 +1848,7 @@ async function exportMonthlySheetPDF(e){
   const doc = newBrandedPDF("Monthly Attendance Sheet", `Generated: ${new Date().toLocaleString()}`);
   doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Emp ID","Name","Status","Location"]],
-    body: lastLoadedRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", labels[i] || "—"]),
+    body: lastLoadedRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", labels[i] || "—"]),
     didDrawCell: locationLinkHook(lastLoadedRows, 4)
   }));
   finishBrandedPDF(doc);
@@ -1782,7 +1874,7 @@ async function exportIndividualReport(e){
   );
   doc.autoTable(brandedTableOptions({
     head: [["Date & Time","Status","Location"]],
-    body: rows.map((r,i) => [r.timestamp||r.date||"", r.status||"", labels[i] || "—"]),
+    body: rows.map((r,i) => [r.timestamp||r.date||"", displayStatus(r.status)||"", labels[i] || "—"]),
     didDrawCell: locationLinkHook(rows, 2)
   }));
   finishBrandedPDF(doc);
@@ -1795,7 +1887,7 @@ function downloadCSV(e){
   const csvRows = [header.join(",")];
   lastLoadedRows.forEach(r => {
     const parts = extractLocationParts(r.location);
-    const row = [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", r.status||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    const row = [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", parts ? parts.url : ""].map(v => `"${String(v).replace(/"/g,'""')}"`);
     csvRows.push(row.join(","));
   });
   const blob = new Blob([csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
@@ -1848,7 +1940,7 @@ function loadLeaveRequests(e){
     .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed to load: ${err.message}</div>`; });
 }
 function approveLeave(empId, name){ actOnLeave(empId, name, "Leave"); }
-function rejectLeave(empId, name){ actOnLeave(empId, name, "Leave Rejected"); }
+function rejectLeave(empId, name){ actOnLeave(empId, name, "Absent"); }
 function actOnLeave(empId, name, newStatus){
   showFullLoader(newStatus === "Leave" ? "Approving..." : "Rejecting...");
   fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"addAttendance", empId, name, status:newStatus, location:"N/A" }) })
