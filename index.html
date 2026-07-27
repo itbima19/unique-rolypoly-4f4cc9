@@ -496,6 +496,140 @@ select#attendance-status{cursor:pointer;}
       </div>
       <button id="submit-attendance-btn" onclick="markAttendance(event)">✔ Submit Attendance</button>
       <div id="attendance-status-msg" class="status hidden"></div>
+
+      <!-- MY TEAM LEADER (visible to every employee, if assigned to a team) -->
+      <div class="last-attendance hidden" id="my-tl-box" style="flex-direction:column; align-items:flex-start; gap:6px;">
+        <span style="font-weight:800;">👤 My Team Leader</span>
+        <div style="display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px;">
+          <span>Name: <b id="my-tl-name">—</b></span>
+          <span>Mobile: <b id="my-tl-mobile">—</b></span>
+          <span>Email: <b id="my-tl-email">—</b></span>
+        </div>
+      </div>
+
+      <!-- TL TEAM PANEL — shown only when this user is a Team Leader.
+           Same look as Admin's dashboard, minus Team Management, and
+           every tab here is scoped to just this TL's own team. -->
+      <div class="hidden" id="tl-team-panel">
+        <div class="analytics-title" style="margin:22px 0 12px;">👥 My Team Dashboard</div>
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTLPTab('overview')">📋 Overview</button>
+          <button class="tab-btn" onclick="switchTLPTab('today')">📆 Today</button>
+          <button class="tab-btn" onclick="switchTLPTab('analytics')">📊 Analytics</button>
+          <button class="tab-btn" onclick="switchTLPTab('reports')">📄 Reports</button>
+          <button class="tab-btn" onclick="switchTLPTab('leave')">🗓 Leave Approvals</button>
+          <button class="tab-btn" onclick="switchTLPTab('history')">🔐 Login History</button>
+        </div>
+
+        <!-- TLP OVERVIEW -->
+        <div class="tab-content active" id="tlp-tab-overview">
+          <div class="stats-row">
+            <div class="stat-card present"><div class="icon">🟢</div><div class="num" id="tlp-stat-present">0</div><div class="label">Present</div></div>
+            <div class="stat-card absent"><div class="icon">🔴</div><div class="num" id="tlp-stat-absent">0</div><div class="label">Absent</div></div>
+            <div class="stat-card leave"><div class="icon">🟡</div><div class="num" id="tlp-stat-leave">0</div><div class="label">Leave</div></div>
+            <div class="stat-card tour"><div class="icon">🧳</div><div class="num" id="tlp-stat-tour">0</div><div class="label">Tour</div></div>
+            <div class="stat-card"><div class="icon">👥</div><div class="num" id="tlp-stat-total">0</div><div class="label">Total Team</div></div>
+          </div>
+          <div class="analytics-box">
+            <div class="analytics-title">📊 Today's Team Attendance %</div>
+            <div class="analytics-row"><div class="top-line"><span>Present</span><span id="tlp-pct-present-txt">0%</span></div><div class="progress-track"><div class="progress-fill" id="tlp-pct-present-bar" style="width:0%; background:var(--green);"></div></div></div>
+            <div class="analytics-row"><div class="top-line"><span>Absent</span><span id="tlp-pct-absent-txt">0%</span></div><div class="progress-track"><div class="progress-fill" id="tlp-pct-absent-bar" style="width:0%; background:var(--red);"></div></div></div>
+            <div class="analytics-row"><div class="top-line"><span>Leave</span><span id="tlp-pct-leave-txt">0%</span></div><div class="progress-track"><div class="progress-fill" id="tlp-pct-leave-bar" style="width:0%; background:var(--amber);"></div></div></div>
+            <div class="analytics-row"><div class="top-line"><span>Tour</span><span id="tlp-pct-tour-txt">0%</span></div><div class="progress-track"><div class="progress-fill" id="tlp-pct-tour-bar" style="width:0%; background:var(--purple);"></div></div></div>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-secondary" onclick="tlpFetchReport(event)">🔄 Refresh Data</button>
+            <button class="btn-success" onclick="tlpDownloadCSV(event)">⬇ Download CSV</button>
+            <button class="btn-secondary" onclick="tlpExportPDF(event)">📄 Download PDF</button>
+          </div>
+          <div class="filters-box">
+            <input type="text" id="tlp-search-box" placeholder="🔍 Search my team..." oninput="tlpApplyFilters()">
+            <input type="date" id="tlp-date-filter" oninput="tlpApplyFilters()">
+            <input type="month" id="tlp-month-filter" oninput="tlpApplyFilters()">
+            <select id="tlp-status-filter" onchange="tlpApplyFilters()">
+              <option value="">All Status</option>
+              <option value="Present">Present</option>
+              <option value="Absent">Absent</option>
+              <option value="Leave">Leave</option>
+              <option value="Tour">Tour</option>
+            </select>
+          </div>
+          <div class="scroll-box">
+            <table id="tlp-report-table">
+              <thead><tr><th>Date &amp; Time</th><th>Emp ID</th><th>Name</th><th>Status</th><th>Location</th></tr></thead>
+              <tbody id="tlp-report-tbody"><tr><td colspan="5" style="text-align:center; color:var(--sub-text);">Click "Refresh Data" to load your team's records...</td></tr></tbody>
+            </table>
+          </div>
+          <div class="pagination" id="tlp-pagination-box"></div>
+        </div>
+
+        <!-- TLP TODAY -->
+        <div class="tab-content" id="tlp-tab-today">
+          <div class="analytics-box">
+            <div class="analytics-title">📆 Today's Team Attendance — <span id="tlp-today-date-label">--</span></div>
+            <div class="admin-actions" style="margin-bottom:16px;">
+              <button class="btn-secondary" onclick="tlpLoadToday(event)">🔄 Refresh Today</button>
+              <button class="btn-secondary" onclick="tlpDownloadTodayPDF(event)">📄 Download PDF</button>
+            </div>
+            <div class="stats-row">
+              <div class="stat-card present"><div class="icon">🟢</div><div class="num" id="tlp-today-present">0</div><div class="label">Present</div></div>
+              <div class="stat-card absent"><div class="icon">🔴</div><div class="num" id="tlp-today-absent">0</div><div class="label">Absent</div></div>
+              <div class="stat-card leave"><div class="icon">🟡</div><div class="num" id="tlp-today-leave">0</div><div class="label">Leave</div></div>
+              <div class="stat-card tour"><div class="icon">🧳</div><div class="num" id="tlp-today-tour">0</div><div class="label">Tour</div></div>
+            </div>
+            <div class="scroll-box">
+              <table>
+                <thead><tr><th>Time</th><th>Emp ID</th><th>Name</th><th>Status</th><th>Location</th></tr></thead>
+                <tbody id="tlp-today-tbody"><tr><td colspan="5" style="text-align:center; color:var(--sub-text);">Click "Refresh Today".</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- TLP ANALYTICS -->
+        <div class="tab-content" id="tlp-tab-analytics">
+          <div class="chart-grid">
+            <div class="chart-card"><h4>🥧 Team Status Distribution</h4><canvas id="tlp-chart-pie"></canvas></div>
+            <div class="chart-card"><h4>📆 Team Weekly Report</h4><canvas id="tlp-chart-weekly"></canvas></div>
+          </div>
+          <div class="analytics-box">
+            <div class="analytics-title">🏆 Top Attendance in My Team</div>
+            <ul class="leaderboard" id="tlp-leaderboard-list"><li class="notif-empty">Refresh data to see rankings.</li></ul>
+          </div>
+        </div>
+
+        <!-- TLP REPORTS -->
+        <div class="tab-content" id="tlp-tab-reports">
+          <div class="analytics-box">
+            <div class="analytics-title">👤 Individual Team-Member Report</div>
+            <div class="form-group">
+              <select id="tlp-individual-select"><option value="">Select a team member...</option></select>
+            </div>
+            <button class="btn-secondary" onclick="tlpExportIndividual(event)">📄 Generate PDF Report</button>
+          </div>
+        </div>
+
+        <!-- TLP LEAVE APPROVALS -->
+        <div class="tab-content" id="tlp-tab-leave">
+          <div class="analytics-box">
+            <div class="analytics-title">🗓 Pending Leave Requests — My Team</div>
+            <div id="tlp-leave-list"><div class="notif-empty">Click "Load Requests".</div></div>
+            <button class="btn-secondary" style="margin-top:12px;" onclick="tlpLoadLeaveRequests(event)">🔄 Load Requests</button>
+          </div>
+        </div>
+
+        <!-- TLP LOGIN HISTORY -->
+        <div class="tab-content" id="tlp-tab-history">
+          <div class="admin-actions"><button class="btn-secondary" onclick="tlpLoadLoginHistory(event)">🔄 Load Login History</button></div>
+          <div class="scroll-box">
+            <table>
+              <thead><tr><th>Time</th><th>Emp ID</th><th>Name</th><th>Result</th><th>Device</th></tr></thead>
+              <tbody id="tlp-history-tbody"><tr><td colspan="5" style="text-align:center; color:var(--sub-text);">Click "Load Login History".</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>
 
@@ -662,51 +796,6 @@ select#attendance-status{cursor:pointer;}
         </div>
       </div>
 
-      <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
-    </div>
-
-    <!-- 4. TEAM LEADER DASHBOARD -->
-    <div id="tl-dashboard" class="hidden">
-      <div class="welcome-card">
-        <div class="avatar" id="tl-avatar">?</div>
-        <div>
-          <div class="name" id="tl-name-display">Team Leader</div>
-          <div class="id-tag">ID: <span id="tl-id-display"></span></div>
-          <div class="meta-row"><span>👥 Team Leader Dashboard</span></div>
-        </div>
-      </div>
-
-      <div class="stats-row">
-        <div class="stat-card present"><div class="icon">🟢</div><div class="num" id="tl-stat-present">0</div><div class="label">Present</div></div>
-        <div class="stat-card absent"><div class="icon">🔴</div><div class="num" id="tl-stat-absent">0</div><div class="label">Absent</div></div>
-        <div class="stat-card leave"><div class="icon">🟡</div><div class="num" id="tl-stat-leave">0</div><div class="label">Leave</div></div>
-        <div class="stat-card tour"><div class="icon">🧳</div><div class="num" id="tl-stat-tour">0</div><div class="label">Tour</div></div>
-        <div class="stat-card"><div class="icon">👥</div><div class="num" id="tl-stat-total">0</div><div class="label">Total Team</div></div>
-      </div>
-
-      <div class="admin-actions">
-        <button class="btn-secondary" onclick="refreshTLDashboard(event)">🔄 Refresh</button>
-        <button class="btn-secondary" onclick="downloadTLTeamPDF(event)">📄 Download PDF</button>
-      </div>
-
-      <div class="filters-box">
-        <input type="text" id="tl-search-box" placeholder="🔍 Search my team..." oninput="renderTLTable()">
-        <input type="date" id="tl-date-filter" oninput="renderTLTable()">
-        <select id="tl-status-filter" onchange="renderTLTable()">
-          <option value="">All Status</option>
-          <option value="Present">Present</option>
-          <option value="Absent">Absent</option>
-          <option value="Leave">Leave</option>
-          <option value="Tour">Tour</option>
-        </select>
-      </div>
-
-      <div class="scroll-box">
-        <table>
-          <thead><tr><th>Emp ID</th><th>Name</th><th>Today's Status</th><th>Last Update</th></tr></thead>
-          <tbody id="tl-team-tbody"><tr><td colspan="4" style="text-align:center; color:var(--sub-text);">Loading your team...</td></tr></tbody>
-        </table>
-      </div>
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>
   </div>
@@ -1041,7 +1130,7 @@ function renderNotifItems(items){
    SCREEN NAV / LOGOUT
    ===================================================================== */
 function showScreen(screenId){
-  ["login-screen","employee-dashboard","admin-dashboard","tl-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  ["login-screen","employee-dashboard","admin-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
 }
 function logout(e){
@@ -1210,11 +1299,6 @@ function loginSuccess(empId, profile, role, team){
   setHeaderUser(currentUser.name, "");
   fetchEmployeePhoto(currentUser.id);
 
-  if (currentUser.role === "tl") {
-    loadTLDashboard(matchedKey, currentUser.name, team || []);
-    return;
-  }
-
   document.getElementById("emp-name-display").innerText = currentUser.name;
   document.getElementById("emp-id-display").innerText = currentUser.id;
   renderProfileInfoGrid();
@@ -1225,6 +1309,8 @@ function loginSuccess(empId, profile, role, team){
   document.getElementById("late-alert-box").classList.add("hidden");
   document.getElementById("edit-profile-box").classList.add("hidden");
   document.getElementById("profile-save-status").className = "status hidden";
+  document.getElementById("my-tl-box").classList.add("hidden");
+  document.getElementById("tl-team-panel").classList.add("hidden");
   const now = new Date();
   document.getElementById("emp-month-filter").value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
   document.getElementById("emp-monthly-summary").classList.add("hidden");
@@ -1234,6 +1320,8 @@ function loginSuccess(empId, profile, role, team){
   updateLocationNote();
   showScreen("employee-dashboard");
   loadEmployeeHistory(currentUser.id);
+  loadMyTL(currentUser.id);
+  if (currentUser.role === "tl") revealTLPanel(team || []);
 }
 
 function setAvatar(el, name, photoUrl){
@@ -2232,85 +2320,339 @@ function deleteTeamUI(tlEmpId){
 }
 
 /* =====================================================================
-   TEAM LEADER DASHBOARD
+   MY TEAM LEADER (shown to every employee, if they're on a team)
+   ===================================================================== */
+function loadMyTL(empId){
+  fetch(`${API_URL}?action=getMyTL&empId=${encodeURIComponent(empId)}`)
+    .then(res => res.json())
+    .then(data => {
+      const tl = data && data.tl;
+      if (!tl) return;
+      document.getElementById("my-tl-name").innerText = `${tl.tlName || tl.tlEmpId} (${tl.tlEmpId})`;
+      document.getElementById("my-tl-mobile").innerText = tl.mobile || "Not set";
+      document.getElementById("my-tl-email").innerText = tl.email || "Not set";
+      document.getElementById("my-tl-box").classList.remove("hidden");
+    })
+    .catch(() => {});
+}
+
+/* =====================================================================
+   TL TEAM PANEL — embedded inside the employee dashboard, shown only
+   when this employee is also a Team Leader. Mirrors Admin's tabs
+   (minus Team Management), scoped to just this TL's own team.
    ===================================================================== */
 let tlTeamMembers = [];
-let tlTodayStatusRows = [];
+let tlpLastLoadedRows = [];
+let tlpFilteredRows = [];
+let tlpCurrentPage = 1;
+let tlpTodayRows = [];
+let tlpCharts = {};
 
-function loadTLDashboard(tlEmpId, tlName, members){
-  currentUser.id = tlEmpId;
-  currentUser.name = tlName;
+function revealTLPanel(members){
   tlTeamMembers = members || [];
-  document.getElementById("tl-name-display").innerText = tlName;
-  document.getElementById("tl-id-display").innerText = tlEmpId;
-  setAvatar(document.getElementById("tl-avatar"), tlName, "");
-  showScreen("tl-dashboard");
-  refreshTLDashboard();
+  document.getElementById("tl-team-panel").classList.remove("hidden");
+  tlpFetchReport();
 }
-function refreshTLDashboard(e){
+
+function switchTLPTab(tab){
+  const panel = document.getElementById("tl-team-panel");
+  panel.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  panel.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+  panel.querySelector(`.tab-btn[onclick="switchTLPTab('${tab}')"]`).classList.add("active");
+  document.getElementById(`tlp-tab-${tab}`).classList.add("active");
+  if (tab === "analytics") tlpRenderCharts();
+  if (tab === "reports") tlpPopulateIndividualSelect();
+  if (tab === "today") tlpLoadToday();
+}
+
+function tlpFetchReport(e){
   if (e) e.preventDefault();
-  const tbody = document.getElementById("tl-team-tbody");
-  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading your team...</td></tr>';
+  const tbody = document.getElementById("tlp-report-tbody");
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</td></tr>';
   showFullLoader("Loading Team Data...");
   fetch(`${API_URL}?action=getAttendance`)
     .then(res => res.json())
     .then(data => {
       const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
-      const todayKey = todayDateKey(new Date());
-      // Most recent row for TODAY per team member; anyone with no row yet defaults to Absent.
-      const latestToday = {};
-      rows.forEach(r => {
-        const id = r.empId || r.employeeId;
-        if (!tlTeamMembers.includes(id)) return;
-        if (todayDateKey(r.timestamp || r.date) === todayKey) latestToday[id] = r;
-      });
-      tlTodayStatusRows = tlTeamMembers.map(id => {
-        const r = latestToday[id];
-        return {
-          empId: id, name: nameForEmpId(id),
-          status: r ? displayStatus(r.status) : "Absent",
-          lastUpdate: r ? (r.timestamp || r.date) : "—"
-        };
-      });
-      renderTLStats();
-      renderTLTable();
+      tlpLastLoadedRows = rows.filter(r => tlTeamMembers.includes(r.empId || r.employeeId));
+      tlpCurrentPage = 1;
+      tlpApplyFilters();
+      tlpRenderStats();
     })
-    .catch(err => { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#dc2626;">Failed to load: ${err.message}</td></tr>`; })
+    .catch(err => { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#dc2626;">Failed to load: ${err.message}</td></tr>`; })
     .finally(() => hideFullLoader());
 }
-function renderTLStats(){
-  document.getElementById("tl-stat-present").innerText = tlTodayStatusRows.filter(r=>r.status==="Present").length;
-  document.getElementById("tl-stat-absent").innerText = tlTodayStatusRows.filter(r=>r.status==="Absent").length;
-  document.getElementById("tl-stat-leave").innerText = tlTodayStatusRows.filter(r=>r.status==="Leave").length;
-  document.getElementById("tl-stat-tour").innerText = tlTodayStatusRows.filter(r=>r.status==="Tour").length;
-  document.getElementById("tl-stat-total").innerText = tlTeamMembers.length;
-}
-function renderTLTable(){
-  const q = (document.getElementById("tl-search-box").value || "").toLowerCase().trim();
-  const statusVal = document.getElementById("tl-status-filter").value;
-  const filtered = tlTodayStatusRows.filter(r => {
-    if (q && !r.name.toLowerCase().includes(q) && !r.empId.toLowerCase().includes(q)) return false;
-    if (statusVal && r.status !== statusVal) return false;
+function tlpApplyFilters(){
+  const q = (document.getElementById("tlp-search-box").value || "").toLowerCase().trim();
+  const dateVal = document.getElementById("tlp-date-filter").value;
+  const monthVal = document.getElementById("tlp-month-filter").value;
+  const statusVal = document.getElementById("tlp-status-filter").value;
+  tlpFilteredRows = tlpLastLoadedRows.filter(r => {
+    const name = (r.name || "").toLowerCase();
+    const id = (r.empId || r.employeeId || "").toLowerCase();
+    const ts = r.timestamp || r.date || "";
+    if (q && !name.includes(q) && !id.includes(q)) return false;
+    if (statusVal && displayStatus(r.status) !== statusVal) return false;
+    if (dateVal && !parseDateMatches(ts, dateVal)) return false;
+    if (monthVal && !parseMonthMatches(ts, monthVal)) return false;
     return true;
   });
-  const tbody = document.getElementById("tl-team-tbody");
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--sub-text);">No matching team members.</td></tr>'; return; }
-  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
-  tbody.innerHTML = filtered.map(r => `
-    <tr><td>${r.empId}</td><td>${r.name}</td>
-      <td><span class="badge ${badgeMap[r.status]||'badge-absent'}">${r.status}</span></td>
-      <td>${r.lastUpdate}</td></tr>`).join("");
+  tlpCurrentPage = 1;
+  tlpRenderPage();
 }
-function downloadTLTeamPDF(e){
+function tlpRenderPage(){
+  const anyFilterActive = document.getElementById("tlp-search-box").value || document.getElementById("tlp-date-filter").value ||
+                           document.getElementById("tlp-month-filter").value || document.getElementById("tlp-status-filter").value;
+  const source = anyFilterActive ? tlpFilteredRows : tlpLastLoadedRows;
+  const reversed = source.slice().reverse();
+  const totalPages = Math.max(1, Math.ceil(reversed.length / ROWS_PER_PAGE));
+  if (tlpCurrentPage > totalPages) tlpCurrentPage = totalPages;
+  const start = (tlpCurrentPage - 1) * ROWS_PER_PAGE;
+  tlpRenderTable(reversed.slice(start, start + ROWS_PER_PAGE));
+  const box = document.getElementById("tlp-pagination-box");
+  if (totalPages <= 1) { box.innerHTML = ""; return; }
+  box.innerHTML = `<button class="btn-secondary" ${tlpCurrentPage===1?"disabled":""} onclick="tlpGoPage(${tlpCurrentPage-1})">◀ Prev</button>
+    <span>Page ${tlpCurrentPage} of ${totalPages}</span>
+    <button class="btn-secondary" ${tlpCurrentPage===totalPages?"disabled":""} onclick="tlpGoPage(${tlpCurrentPage+1})">Next ▶</button>`;
+}
+function tlpGoPage(p){ tlpCurrentPage = p; tlpRenderPage(); }
+function tlpRenderTable(rows){
+  const tbody = document.getElementById("tlp-report-tbody");
+  if (!rows || !rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No records found.</td></tr>'; return; }
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
+  const hydrationQueue = [];
+  tbody.innerHTML = rows.map(r => {
+    const shown = displayStatus(r.status);
+    const badgeClass = badgeMap[shown] || "badge-absent";
+    const loc = locationCellHtml(r.location, hydrationQueue);
+    return `<tr><td>${r.timestamp || r.date || ""}</td><td>${r.empId || r.employeeId || ""}</td><td>${r.name || ""}</td>
+      <td><span class="badge ${badgeClass}">${shown || ""}</span></td><td>${loc}</td></tr>`;
+  }).join("");
+  hydrateLocationCells(hydrationQueue);
+}
+function tlpRenderStats(){
+  const rows = tlpLastLoadedRows;
+  const present = rows.filter(r => r.status === "Present").length;
+  const absent = rows.filter(r => displayStatus(r.status) === "Absent").length;
+  const leave = rows.filter(r => r.status === "Leave").length;
+  const tour = rows.filter(r => r.status === "Tour").length;
+  const total = rows.length || 1;
+  document.getElementById("tlp-stat-present").innerText = present;
+  document.getElementById("tlp-stat-absent").innerText = absent;
+  document.getElementById("tlp-stat-leave").innerText = leave;
+  document.getElementById("tlp-stat-tour").innerText = tour;
+  document.getElementById("tlp-stat-total").innerText = tlTeamMembers.length;
+  ["present","absent","leave","tour"].forEach(key => {
+    const count = key==="present"?present:key==="absent"?absent:key==="leave"?leave:tour;
+    const pct = Math.round((count/total)*100);
+    document.getElementById(`tlp-pct-${key}-txt`).innerText = pct + "%";
+    document.getElementById(`tlp-pct-${key}-bar`).style.width = pct + "%";
+  });
+}
+function tlpDownloadCSV(e){
   if (e) e.preventDefault();
-  if (!tlTodayStatusRows.length) { alert("No team data loaded yet."); return; }
-  const doc = newBrandedPDF(`Team Attendance — ${currentUser.name}`, `Generated: ${new Date().toLocaleString()}`);
+  if (!tlpLastLoadedRows.length) { alert("No data loaded yet. Click 'Refresh Data' first."); return; }
+  const header = ["Date & Time", "Emp ID", "Name", "Status", "Location Link"];
+  const csvRows = [header.join(",")];
+  tlpLastLoadedRows.forEach(r => {
+    const parts = extractLocationParts(r.location);
+    const row = [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", parts?parts.url:""].map(v => `"${String(v).replace(/"/g,'""')}"`);
+    csvRows.push(row.join(","));
+  });
+  const blob = new Blob([csvRows.join("\n")], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = `my_team_attendance_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+}
+async function tlpExportPDF(e){
+  if (e) e.preventDefault();
+  if (!tlpLastLoadedRows.length) { alert("No data loaded yet. Click 'Refresh Data' first."); return; }
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(tlpLastLoadedRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(`My Team Attendance — ${currentUser.name}`, `Generated: ${new Date().toLocaleString()}`);
   doc.autoTable(brandedTableOptions({
-    head: [["Emp ID","Name","Today's Status","Last Update"]],
-    body: tlTodayStatusRows.map(r => [r.empId, r.name, r.status, r.lastUpdate])
+    head: [["Date & Time","Emp ID","Name","Status","Location"]],
+    body: tlpLastLoadedRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", labels[i]||"—"]),
+    didDrawCell: locationLinkHook(tlpLastLoadedRows, 4)
   }));
   finishBrandedPDF(doc);
-  doc.save(`team_attendance_${currentUser.id.replace("/","_")}.pdf`);
+  doc.save(`my_team_attendance_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+/* ---- TLP Today ---- */
+function tlpLoadToday(e){
+  if (e) e.preventDefault();
+  const now = new Date();
+  document.getElementById("tlp-today-date-label").innerText = now.toLocaleDateString(undefined, { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+  const tbody = document.getElementById("tlp-today-tbody");
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</td></tr>';
+  showFullLoader("Loading Today's Attendance...");
+  fetch(`${API_URL}?action=getAttendance`)
+    .then(res => res.json())
+    .then(data => {
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      const todayKey = todayDateKey(now);
+      tlpTodayRows = rows.filter(r => tlTeamMembers.includes(r.empId || r.employeeId) && todayDateKey(r.timestamp || r.date) === todayKey);
+      tlpRenderToday(tlpTodayRows);
+    })
+    .catch(err => { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#dc2626;">Failed: ${err.message}</td></tr>`; })
+    .finally(() => hideFullLoader());
+}
+function tlpRenderToday(rows){
+  document.getElementById("tlp-today-present").innerText = rows.filter(r=>r.status==="Present").length;
+  document.getElementById("tlp-today-absent").innerText = rows.filter(r=>displayStatus(r.status)==="Absent").length;
+  document.getElementById("tlp-today-leave").innerText = rows.filter(r=>r.status==="Leave").length;
+  document.getElementById("tlp-today-tour").innerText = rows.filter(r=>r.status==="Tour").length;
+  const tbody = document.getElementById("tlp-today-tbody");
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No attendance marked yet today.</td></tr>'; return; }
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
+  const hydrationQueue = [];
+  tbody.innerHTML = rows.slice().reverse().map(r => {
+    const shown = displayStatus(r.status);
+    const loc = locationCellHtml(r.location, hydrationQueue);
+    return `<tr><td>${r.timestamp||r.date||""}</td><td>${r.empId||r.employeeId||""}</td><td>${r.name||""}</td>
+      <td><span class="badge ${badgeMap[shown]||'badge-absent'}">${shown}</span></td><td>${loc}</td></tr>`;
+  }).join("");
+  hydrateLocationCells(hydrationQueue);
+}
+async function tlpDownloadTodayPDF(e){
+  if (e) e.preventDefault();
+  if (!tlpTodayRows.length) { alert("No data loaded. Click 'Refresh Today' first."); return; }
+  const now = new Date();
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(tlpTodayRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(`Today's Team Attendance — ${currentUser.name}`, `Generated: ${now.toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
+    head: [["Time","Emp ID","Name","Status","Location"]],
+    body: tlpTodayRows.map((r,i) => [r.timestamp||r.date||"", r.empId||r.employeeId||"", r.name||"", displayStatus(r.status)||"", labels[i]||"—"]),
+    didDrawCell: locationLinkHook(tlpTodayRows, 4)
+  }));
+  finishBrandedPDF(doc);
+  doc.save(`today_team_attendance_${todayDateKey(now)}.pdf`);
+}
+
+/* ---- TLP Analytics ---- */
+function tlpRenderCharts(){
+  if (!window.Chart) return;
+  const c = chartColors();
+  const rows = tlpLastLoadedRows;
+  const present = rows.filter(r=>r.status==="Present").length;
+  const absent = rows.filter(r=>displayStatus(r.status)==="Absent").length;
+  const leave = rows.filter(r=>r.status==="Leave").length;
+  const tour = rows.filter(r=>r.status==="Tour").length;
+
+  if (tlpCharts.pie) tlpCharts.pie.destroy();
+  tlpCharts.pie = new Chart(document.getElementById("tlp-chart-pie"), {
+    type:"pie",
+    data:{ labels:["Present","Absent","Leave","Tour"], datasets:[{ data:[present,absent,leave,tour], backgroundColor:["#16a34a","#dc2626","#b45309","#7c3aed"] }] },
+    options:{ plugins:{ legend:{ labels:{ color:c.text } } } }
+  });
+
+  const days = []; const dayLabels = [];
+  for (let i=6;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); days.push(d.toDateString()); dayLabels.push(d.toLocaleDateString(undefined,{weekday:"short"})); }
+  const weeklyCounts = days.map(dStr => rows.filter(r => parseFlexibleDate(r.timestamp||r.date).toDateString() === dStr && r.status==="Present").length);
+  if (tlpCharts.weekly) tlpCharts.weekly.destroy();
+  tlpCharts.weekly = new Chart(document.getElementById("tlp-chart-weekly"), {
+    type:"bar",
+    data:{ labels:dayLabels, datasets:[{ label:"Present", data:weeklyCounts, backgroundColor:"#3b82f6" }] },
+    options:{ scales:{ x:{ ticks:{color:c.text}, grid:{color:c.grid} }, y:{ ticks:{color:c.text}, grid:{color:c.grid}, beginAtZero:true } }, plugins:{ legend:{ labels:{color:c.text} } } }
+  });
+
+  const counts = {};
+  rows.forEach(r => {
+    if (r.status !== "Present") return;
+    const id = r.empId || r.employeeId;
+    if (!counts[id]) counts[id] = { name: r.name || nameForEmpId(id), count:0 };
+    counts[id].count++;
+  });
+  const ranked = Object.values(counts).sort((a,b)=>b.count-a.count).slice(0,10);
+  const list = document.getElementById("tlp-leaderboard-list");
+  if (!ranked.length) { list.innerHTML = '<li class="notif-empty">No data yet — click Refresh Data.</li>'; return; }
+  list.innerHTML = ranked.map((r,i) => `<li><div class="name-wrap"><span class="rank">${i+1}</span>${r.name}</div><b>${r.count} days</b></li>`).join("");
+}
+
+/* ---- TLP Reports (individual team member) ---- */
+function tlpPopulateIndividualSelect(){
+  const sel = document.getElementById("tlp-individual-select");
+  sel.innerHTML = '<option value="">Select a team member...</option>' +
+    tlTeamMembers.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
+}
+async function tlpExportIndividual(e){
+  if (e) e.preventDefault();
+  const empId = document.getElementById("tlp-individual-select").value;
+  if (!empId) { alert("Please select a team member."); return; }
+  const rows = tlpLastLoadedRows.filter(r => (r.empId || r.employeeId) === empId);
+  if (!rows.length) { alert("No attendance records for this employee yet (or data not refreshed)."); return; }
+  showFullLoader("Preparing PDF...");
+  const labels = await Promise.all(rows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF(`Individual Attendance Report — ${nameForEmpId(empId)}`, `Employee ID: ${empId}  |  Generated: ${new Date().toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
+    head: [["Date & Time","Status","Location"]],
+    body: rows.map((r,i) => [r.timestamp||r.date||"", displayStatus(r.status)||"", labels[i]||"—"]),
+    didDrawCell: locationLinkHook(rows, 2)
+  }));
+  finishBrandedPDF(doc);
+  doc.save(`report_${empId.replace("/","_")}.pdf`);
+}
+
+/* ---- TLP Leave Approvals (scoped to team) ---- */
+function tlpLoadLeaveRequests(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("tlp-leave-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getAttendance`)
+    .then(res => res.json())
+    .then(data => {
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      const latestByEmp = {};
+      rows.forEach(r => { const id = r.empId || r.employeeId; if (id && tlTeamMembers.includes(id)) latestByEmp[id] = r; });
+      const pending = Object.values(latestByEmp).filter(r => r.status === "Pending Leave");
+      if (!pending.length) { box.innerHTML = '<div class="notif-empty">✅ No pending leave requests in your team.</div>'; return; }
+      box.innerHTML = pending.map(r => {
+        const id = r.empId || r.employeeId;
+        return `<div class="notif-item">
+          <div class="n-ic">🗓</div>
+          <div style="flex:1;">
+            <div class="n-title">${r.name || id} (${id})</div>
+            <div class="n-sub">Requested: ${r.timestamp || r.date || ""}</div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="tlpActOnLeave('${id}','${(r.name||'').replace(/'/g,"\\'")}','Leave')">✔ Approve</button>
+              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="tlpActOnLeave('${id}','${(r.name||'').replace(/'/g,"\\'")}','Absent')">✕ Reject</button>
+            </div>
+          </div>
+        </div>`;
+      }).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function tlpActOnLeave(empId, name, newStatus){
+  showFullLoader(newStatus === "Leave" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"addAttendance", empId, name, status:newStatus, location:"N/A" }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success === false) throw new Error(data.error); tlpLoadLeaveRequests(); })
+    .catch(err => { hideFullLoader(); alert("Could not update leave request: " + err.message); });
+}
+
+/* ---- TLP Login History (scoped to team) ---- */
+function tlpLoadLoginHistory(e){
+  if (e) e.preventDefault();
+  const tbody = document.getElementById("tlp-history-tbody");
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</td></tr>';
+  fetch(`${API_URL}?action=getLoginHistory`)
+    .then(res => res.json())
+    .then(data => {
+      const rows = ((data && data.history) || []).filter(r => tlTeamMembers.includes(r.empId));
+      if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--sub-text);">No login history for your team yet.</td></tr>'; return; }
+      tbody.innerHTML = rows.slice().reverse().map(r => `
+        <tr><td>${r.timestamp||""}</td><td>${r.empId||""}</td><td>${r.name||""}</td>
+          <td><span class="badge ${r.result==='Success'?'badge-present':'badge-absent'}">${r.result||""}</span></td>
+          <td>${r.device||""}</td></tr>`).join("");
+    })
+    .catch(err => { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#dc2626;">Failed: ${err.message}</td></tr>`; });
 }
 
 /* =====================================================================
