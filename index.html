@@ -16,9 +16,11 @@
   --border:#e2e8f0; --bg:#f8fafc; --accent:#2563eb; --accent-dark:#1d4ed8; --accent-soft:#eff6ff;
   --green:#16a34a; --green-soft:#f0fdf4; --red:#dc2626; --red-soft:#fef2f2;
   --amber:#b45309; --amber-soft:#fffbeb; --purple:#7c3aed; --purple-soft:#f5f3ff;
+  --orange:#f97316; --orange-dark:#ea580c; --orange-soft:#fff2e8;
   --radius:16px; --card-bg:#ffffff; --text:#0f172a; --sub-text:#64748b; --glass:rgba(255,255,255,.6);
   --header-grad: linear-gradient(135deg,#0F172A 0%, #1E3A8A 55%, #3B82F6 100%);
   --body-grad: linear-gradient(160deg,#0F172A 0%, #1E3A8A 55%, #3B82F6 100%);
+  --accent-stripe: linear-gradient(90deg, #f97316 0%, #fb923c 30%, #3B82F6 70%, #1E3A8A 100%);
 }
 [data-theme="dark"]{
   --border:#334155; --bg:#0b1220; --card-bg:#111827; --text:#e5e7eb; --sub-text:#94a3b8; --glass:rgba(17,24,39,.55);
@@ -31,10 +33,14 @@ body{
   color:var(--text); padding:20px; display:flex; justify-content:center; align-items:flex-start; min-height:100vh;
 }
 .container{
-  background:var(--card-bg); padding:0; border-radius:var(--radius);
+  background:rgba(255,255,255,.78); padding:0; border-radius:var(--radius);
   box-shadow:0 25px 70px rgba(0,0,0,.4); width:100%; max-width:960px; overflow:hidden;
   animation:fadeInUp .5s ease; margin:auto; position:relative;
+  backdrop-filter:blur(26px) saturate(180%); -webkit-backdrop-filter:blur(26px) saturate(180%);
+  border:1px solid rgba(255,255,255,.4);
 }
+[data-theme="dark"] .container{background:rgba(17,24,39,.82); border-color:rgba(255,255,255,.08);}
+.container::before{content:""; display:block; height:4px; background:var(--accent-stripe); width:100%;}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
@@ -44,7 +50,7 @@ body{
 @keyframes stagger{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
 
 /* ---------- Header ---------- */
-.topbar{background:var(--header-grad); color:#fff; padding:18px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; position:relative;}
+.topbar{background:var(--header-grad); color:#fff; padding:20px 26px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; position:relative; box-shadow:0 4px 20px rgba(15,23,42,.25); z-index:5;}
 .topbar-left{display:flex; align-items:center; gap:12px; min-width:0;}
 .topbar .logo{width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,.15); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:1px solid rgba(255,255,255,.25); font-size:20px; overflow:hidden;}
 .topbar .logo img{width:100%; height:100%; object-fit:cover;}
@@ -69,10 +75,13 @@ body{
 
 /* ---------- Dropdown panels (profile + notifications) ---------- */
 .dropdown-panel{
-  position:absolute; top:46px; right:0; width:290px; background:var(--card-bg); border:1px solid var(--border);
-  border-radius:14px; box-shadow:0 18px 45px rgba(0,0,0,.25); z-index:50; overflow:hidden; animation:scaleIn .18s ease;
+  position:absolute; top:46px; right:0; width:290px; background:rgba(255,255,255,.9); border:1px solid rgba(255,255,255,.5);
+  backdrop-filter:blur(18px) saturate(160%); -webkit-backdrop-filter:blur(18px) saturate(160%);
+  border-radius:14px; box-shadow:0 18px 45px rgba(0,0,0,.25); z-index:50; overflow:hidden; animation:dropIn .22s cubic-bezier(.22,1,.36,1);
   color:var(--text);
 }
+[data-theme="dark"] .dropdown-panel{background:rgba(17,24,39,.92); border-color:rgba(255,255,255,.1);}
+@keyframes dropIn{from{opacity:0; transform:translateY(-8px) scale(.96);}to{opacity:1; transform:translateY(0) scale(1);}}
 .dropdown-panel.hidden{display:none;}
 .dp-head{padding:16px; background:var(--bg); display:flex; align-items:center; gap:12px; border-bottom:1px solid var(--border);}
 .dp-head .avatar{width:44px; height:44px; font-size:16px;}
@@ -115,6 +124,8 @@ button:disabled{background-color:#cbd5e1; cursor:not-allowed;}
 .btn-success:hover{background-color:#15803d;}
 .btn-outline{background:transparent; border:1.5px solid var(--border); color:var(--text);}
 .btn-outline:hover{background:var(--bg);}
+.btn-orange{background-color:var(--orange); color:#fff;}
+.btn-orange:hover{background-color:var(--orange-dark);}
 .btn-link{background:transparent; color:var(--accent); font-weight:700; text-decoration:underline; padding:6px; margin-top:8px; width:auto;}
 .hidden{display:none !important;}
 
@@ -140,28 +151,54 @@ button:disabled{background-color:#cbd5e1; cursor:not-allowed;}
 .success-overlay p{color:#fff; font-weight:800; font-size:15px; text-align:center; padding:0 20px;}
 
 /* ---------- Glassmorphism cards ---------- */
-.welcome-card{display:flex; align-items:center; gap:14px; background:var(--glass); backdrop-filter:blur(10px); border:1px solid var(--border); border-radius:16px; padding:18px; margin-bottom:18px; animation:scaleIn .35s ease; box-shadow:0 8px 24px rgba(0,0,0,.06);}
+.welcome-card{position:relative; overflow:hidden; display:flex; align-items:center; gap:14px; background:var(--glass); backdrop-filter:blur(14px) saturate(160%); -webkit-backdrop-filter:blur(14px) saturate(160%); border:1px solid rgba(255,255,255,.35); border-radius:16px; padding:18px; margin-bottom:18px; animation:scaleIn .4s cubic-bezier(.22,1,.36,1); box-shadow:0 8px 28px rgba(15,23,42,.08);}
+.welcome-card::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:linear-gradient(160deg, rgba(255,255,255,.3) 0%, rgba(255,255,255,0) 40%);}
+[data-theme="dark"] .welcome-card::before{background:linear-gradient(160deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 40%);}
+.welcome-card > *{position:relative; z-index:1;}
 .avatar{width:56px; height:56px; border-radius:14px; background:var(--navy); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:20px; flex-shrink:0; overflow:hidden; box-shadow:0 4px 14px rgba(0,0,0,.15);}
 .avatar img{width:100%; height:100%; object-fit:cover;}
 .avatar-wrap{position:relative; cursor:pointer; flex-shrink:0;}
-.avatar-wrap .cam-badge{position:absolute; bottom:-4px; right:-4px; width:22px; height:22px; border-radius:50%; background:var(--accent); border:2px solid var(--card-bg); display:flex; align-items:center; justify-content:center; font-size:11px; box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.avatar-wrap .cam-badge{position:absolute; bottom:-4px; right:-4px; width:22px; height:22px; border-radius:50%; background:var(--orange); border:2px solid var(--card-bg); display:flex; align-items:center; justify-content:center; font-size:11px; box-shadow:0 2px 8px rgba(249,115,22,.5);}
 .avatar-wrap:hover .avatar{opacity:.85;}
 .welcome-card .name{font-weight:800; font-size:16.5px; color:var(--text);}
 .welcome-card .id-tag{color:var(--sub-text); font-size:12.5px; margin-top:2px;}
 .welcome-card .meta-row{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; font-size:11.5px; color:var(--sub-text);}
 .welcome-card .meta-row span{background:var(--card-bg); border:1px solid var(--border); padding:3px 10px; border-radius:20px; font-weight:600;}
+.profile-info-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:4px 20px; margin-top:12px; padding-top:10px; border-top:1px dashed var(--border);}
+.pi-item{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:5px 0; font-size:12.5px;}
+.pi-k{color:var(--sub-text); font-weight:600; flex-shrink:0;}
+.pi-v{font-weight:700; text-align:right; color:var(--text); word-break:break-word;}
 .hint{font-size:12px; color:var(--slate-light); margin-top:6px; text-align:center;}
+.welcome-card-hint{font-size:11.5px; color:var(--sub-text); margin:-8px 0 16px 2px;}
 
-.last-attendance{background:var(--accent-soft); border:1px solid #bfdbfe; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--text); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.last-attendance{background:var(--accent-soft); border:1px solid #bfdbfe; border-radius:12px; padding:12px 16px; margin-bottom:16px; font-size:13px; color:var(--text); display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; animation:cardPopIn .4s cubic-bezier(.22,1,.36,1) both;}
 [data-theme="dark"] .last-attendance{border-color:#1e3a5f;}
 
 /* ---------- Stat cards ---------- */
 .stats-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(115px,1fr)); gap:12px; margin-bottom:20px;}
-.stat-card{border:1px solid var(--border); border-radius:14px; padding:16px; text-align:center; background:var(--glass); backdrop-filter:blur(8px); transition:transform .18s ease, box-shadow .18s ease; cursor:default; animation:stagger .35s ease;}
-.stat-card:hover{transform:translateY(-4px); box-shadow:0 10px 24px rgba(0,0,0,.12);}
-.stat-card .icon{font-size:22px; margin-bottom:4px;}
-.stat-card .num{font-size:23px; font-weight:800; color:var(--text);}
-.stat-card .label{font-size:11px; color:var(--sub-text); margin-top:3px; font-weight:600; text-transform:uppercase; letter-spacing:.4px;}
+.stat-card{
+  position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.35); border-radius:14px; padding:16px; text-align:center;
+  background:var(--glass); backdrop-filter:blur(12px) saturate(160%); -webkit-backdrop-filter:blur(12px) saturate(160%);
+  transition:transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .22s ease; cursor:default;
+  animation:cardPopIn .5s cubic-bezier(.22,1,.36,1) both; opacity:0;
+  box-shadow:0 4px 16px rgba(15,23,42,.06);
+}
+.stat-card::before{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(155deg, rgba(255,255,255,.35) 0%, rgba(255,255,255,0) 45%);
+}
+[data-theme="dark"] .stat-card::before{background:linear-gradient(155deg, rgba(255,255,255,.08) 0%, rgba(255,255,255,0) 45%);}
+.stats-row .stat-card:nth-child(1){animation-delay:.03s;}
+.stats-row .stat-card:nth-child(2){animation-delay:.09s;}
+.stats-row .stat-card:nth-child(3){animation-delay:.15s;}
+.stats-row .stat-card:nth-child(4){animation-delay:.21s;}
+.stats-row .stat-card:nth-child(5){animation-delay:.27s;}
+@keyframes cardPopIn{from{opacity:0; transform:translateY(14px) scale(.94);}to{opacity:1; transform:translateY(0) scale(1);}}
+.stat-card:hover{transform:translateY(-6px) scale(1.03); box-shadow:0 16px 32px rgba(37,99,235,.18);}
+.stat-card:hover .icon{transform:scale(1.18) rotate(-4deg);}
+.stat-card .icon{font-size:22px; margin-bottom:4px; display:inline-block; transition:transform .25s cubic-bezier(.34,1.56,.64,1);}
+.stat-card .num{font-size:23px; font-weight:800; color:var(--text); position:relative; z-index:1;}
+.stat-card .label{font-size:11px; color:var(--sub-text); margin-top:3px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; position:relative; z-index:1;}
 .stat-card.present .num{color:var(--green);}
 .stat-card.absent .num{color:var(--red);}
 .stat-card.leave .num{color:var(--amber);}
@@ -169,13 +206,18 @@ button:disabled{background-color:#cbd5e1; cursor:not-allowed;}
 
 /* ---------- Tabs ---------- */
 .tabs{display:flex; gap:6px; margin-bottom:18px; overflow-x:auto; padding-bottom:2px;}
-.tab-btn{width:auto; flex-shrink:0; background:var(--bg); color:var(--sub-text); border:1px solid var(--border); padding:9px 16px; font-size:12.5px; margin-top:0; font-weight:700;}
+.tab-btn{width:auto; flex-shrink:0; background:var(--bg); color:var(--sub-text); border:1px solid var(--border); padding:9px 18px; font-size:12.5px; margin-top:0; font-weight:700; border-radius:24px; transition:all .15s ease;}
+.tab-btn:hover{background:var(--accent-soft); color:var(--accent); transform:none;}
+.tab-btn.active{box-shadow:0 4px 14px rgba(37,99,235,.35);}
 .tab-btn.active{background:var(--accent); color:#fff; border-color:var(--accent);}
 .tab-content{display:none;}
 .tab-content.active{display:block; animation:fadeIn .25s ease;}
 
 /* ---------- Analytics ---------- */
-.analytics-box{background:var(--glass); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:20px;}
+.analytics-box{position:relative; overflow:hidden; background:var(--glass); backdrop-filter:blur(12px) saturate(160%); -webkit-backdrop-filter:blur(12px) saturate(160%); border:1px solid rgba(255,255,255,.3); border-radius:14px; padding:16px 18px; margin-bottom:20px; box-shadow:0 6px 20px rgba(15,23,42,.06); animation:cardPopIn .45s cubic-bezier(.22,1,.36,1) both;}
+.analytics-box::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:linear-gradient(160deg, rgba(255,255,255,.25) 0%, rgba(255,255,255,0) 40%);}
+[data-theme="dark"] .analytics-box::before{background:linear-gradient(160deg, rgba(255,255,255,.06) 0%, rgba(255,255,255,0) 40%);}
+.analytics-box > *{position:relative; z-index:1;}
 .analytics-title{font-size:13px; font-weight:800; color:var(--text); margin-bottom:12px; display:flex; align-items:center; gap:6px;}
 .analytics-row{margin-bottom:10px;}
 .analytics-row:last-child{margin-bottom:0;}
@@ -184,7 +226,8 @@ button:disabled{background-color:#cbd5e1; cursor:not-allowed;}
 .progress-fill{height:100%; border-radius:20px; transition:width .5s ease;}
 
 .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;}
-.chart-card{background:var(--card-bg); border:1px solid var(--border); border-radius:14px; padding:14px; }
+.chart-card{background:var(--glass); backdrop-filter:blur(10px) saturate(150%); -webkit-backdrop-filter:blur(10px) saturate(150%); border:1px solid rgba(255,255,255,.3); border-radius:14px; padding:14px; box-shadow:0 6px 18px rgba(15,23,42,.06); animation:cardPopIn .45s cubic-bezier(.22,1,.36,1) both; transition:transform .2s ease, box-shadow .2s ease;}
+.chart-card:hover{transform:translateY(-3px); box-shadow:0 14px 28px rgba(37,99,235,.14);}
 .chart-card h4{font-size:12.5px; font-weight:800; margin-bottom:10px; color:var(--text);}
 .chart-card canvas{max-height:220px;}
 
@@ -235,13 +278,20 @@ select#attendance-status{cursor:pointer;}
 .login-hero .login-logo img{width:100%; height:100%; object-fit:cover;}
 .login-hero h2{font-size:19px; font-weight:800; color:var(--text);}
 .login-hero p{font-size:12.5px; color:var(--sub-text); margin-top:3px;}
-.login-card{background:var(--glass); backdrop-filter:blur(10px); border:1px solid var(--border); border-radius:16px; padding:26px 24px; box-shadow:0 8px 30px rgba(0,0,0,.06);}
+.login-card{position:relative; overflow:hidden; background:var(--glass); backdrop-filter:blur(14px) saturate(160%); -webkit-backdrop-filter:blur(14px) saturate(160%); border:1px solid rgba(255,255,255,.35); border-radius:16px; padding:26px 24px; box-shadow:0 10px 34px rgba(15,23,42,.1); animation:scaleIn .4s cubic-bezier(.22,1,.36,1);}
+.login-card::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:linear-gradient(160deg, rgba(255,255,255,.3) 0%, rgba(255,255,255,0) 40%);}
+[data-theme="dark"] .login-card::before{background:linear-gradient(160deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 40%);}
+.login-card > *{position:relative; z-index:1;}
 [data-theme="dark"] .login-card{box-shadow:0 8px 30px rgba(0,0,0,.3);}
 
 .site-footer{text-align:center; padding:16px 20px 20px; font-size:11.5px; color:var(--sub-text); border-top:1px solid var(--border); margin-top:26px;}
 .site-footer b{color:var(--text);}
 .site-footer .foot-line{margin-top:2px;}
 
+@media (max-width:900px){
+  .chart-grid{grid-template-columns:1fr;}
+  .stats-row{grid-template-columns:repeat(3,1fr);}
+}
 @media (max-width:600px){
   body{padding:0;}
   .container{border-radius:0; max-width:100%; min-height:100vh;}
@@ -256,6 +306,16 @@ select#attendance-status{cursor:pointer;}
   .filters-box{grid-template-columns:1fr 1fr;}
   .chart-grid{grid-template-columns:1fr;}
   .dropdown-panel{width:250px; right:-10px;}
+  .welcome-card{flex-direction:column; align-items:flex-start;}
+  .profile-info-grid{grid-template-columns:1fr;}
+  .pi-item{flex-direction:column; align-items:flex-start; gap:1px;}
+  .pi-v{text-align:left;}
+}
+@media (max-width:420px){
+  .stats-row{grid-template-columns:repeat(2,1fr);}
+  .filters-box{grid-template-columns:1fr;}
+  .tabs{gap:8px;}
+  .tab-btn{padding:8px 14px; font-size:11.5px;}
 }
 </style>
 </head>
@@ -339,15 +399,22 @@ select#attendance-status{cursor:pointer;}
           <div class="cam-badge">📷</div>
         </div>
         <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoFileSelected(event)">
-        <div>
+        <div style="flex:1; min-width:0;">
           <div class="name" id="emp-name-display">Employee</div>
           <div class="id-tag">ID: <span id="emp-id-display"></span></div>
           <div class="meta-row">
-            <span id="emp-designation">💼 --</span>
-            <span id="emp-department-tag">🏬 --</span>
             <span id="emp-today-date">--</span>
             <span id="emp-today-time">--:--</span>
           </div>
+          <div class="profile-info-grid">
+            <div class="pi-item"><span class="pi-k">Designation</span><span class="pi-v" id="pi-designation">--</span></div>
+            <div class="pi-item"><span class="pi-k">Department</span><span class="pi-v" id="pi-department">--</span></div>
+            <div class="pi-item"><span class="pi-k">Mobile</span><span class="pi-v" id="pi-mobile">Not set</span></div>
+            <div class="pi-item"><span class="pi-k">Email</span><span class="pi-v" id="pi-email">Not set</span></div>
+            <div class="pi-item"><span class="pi-k">Joining Date</span><span class="pi-v" id="pi-joining">Not set</span></div>
+            <div class="pi-item"><span class="pi-k">Date of Birth</span><span class="pi-v" id="pi-dob">Not set</span></div>
+          </div>
+          <button class="btn-orange" style="width:auto; padding:7px 16px; font-size:11.5px; margin-top:12px;" onclick="openEditProfile(event)">✏️ Edit Profile</button>
         </div>
       </div>
       <div id="photo-upload-status" class="status hidden"></div>
@@ -441,6 +508,7 @@ select#attendance-status{cursor:pointer;}
         <button class="tab-btn" onclick="switchAdminTab('reports')">📄 Reports</button>
         <button class="tab-btn" onclick="switchAdminTab('leave')">🗓 Leave Approvals</button>
         <button class="tab-btn" onclick="switchAdminTab('history')">🔐 Login History</button>
+        <button class="tab-btn" onclick="switchAdminTab('teams')">👥 Team Management</button>
       </div>
 
       <!-- OVERVIEW TAB -->
@@ -567,6 +635,78 @@ select#attendance-status{cursor:pointer;}
         </div>
       </div>
 
+      <!-- TEAM MANAGEMENT TAB -->
+      <div class="tab-content" id="tab-teams">
+        <div class="analytics-box">
+          <div class="analytics-title">👥 Create / Edit Team</div>
+          <div class="form-group">
+            <label>Select Team Leader</label>
+            <select id="team-tl-select" onchange="onTeamTLChange()">
+              <option value="">Select a Team Leader...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Select Employees for this team</label>
+            <div class="scroll-box" style="max-height:220px;">
+              <div id="team-members-checklist" style="padding:8px 4px;"></div>
+            </div>
+          </div>
+          <button class="btn-success" onclick="saveTeam(event)">💾 Save Team</button>
+          <div id="team-save-status" class="status hidden"></div>
+        </div>
+
+        <div class="analytics-box">
+          <div class="analytics-title">📋 Existing Teams</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadTeamsList(event)">🔄 Refresh Teams</button></div>
+          <div id="teams-list"><div class="notif-empty">Click "Refresh Teams" to load.</div></div>
+        </div>
+      </div>
+
+      <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
+    </div>
+
+    <!-- 4. TEAM LEADER DASHBOARD -->
+    <div id="tl-dashboard" class="hidden">
+      <div class="welcome-card">
+        <div class="avatar" id="tl-avatar">?</div>
+        <div>
+          <div class="name" id="tl-name-display">Team Leader</div>
+          <div class="id-tag">ID: <span id="tl-id-display"></span></div>
+          <div class="meta-row"><span>👥 Team Leader Dashboard</span></div>
+        </div>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card present"><div class="icon">🟢</div><div class="num" id="tl-stat-present">0</div><div class="label">Present</div></div>
+        <div class="stat-card absent"><div class="icon">🔴</div><div class="num" id="tl-stat-absent">0</div><div class="label">Absent</div></div>
+        <div class="stat-card leave"><div class="icon">🟡</div><div class="num" id="tl-stat-leave">0</div><div class="label">Leave</div></div>
+        <div class="stat-card tour"><div class="icon">🧳</div><div class="num" id="tl-stat-tour">0</div><div class="label">Tour</div></div>
+        <div class="stat-card"><div class="icon">👥</div><div class="num" id="tl-stat-total">0</div><div class="label">Total Team</div></div>
+      </div>
+
+      <div class="admin-actions">
+        <button class="btn-secondary" onclick="refreshTLDashboard(event)">🔄 Refresh</button>
+        <button class="btn-secondary" onclick="downloadTLTeamPDF(event)">📄 Download PDF</button>
+      </div>
+
+      <div class="filters-box">
+        <input type="text" id="tl-search-box" placeholder="🔍 Search my team..." oninput="renderTLTable()">
+        <input type="date" id="tl-date-filter" oninput="renderTLTable()">
+        <select id="tl-status-filter" onchange="renderTLTable()">
+          <option value="">All Status</option>
+          <option value="Present">Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Leave">Leave</option>
+          <option value="Tour">Tour</option>
+        </select>
+      </div>
+
+      <div class="scroll-box">
+        <table>
+          <thead><tr><th>Emp ID</th><th>Name</th><th>Today's Status</th><th>Last Update</th></tr></thead>
+          <tbody id="tl-team-tbody"><tr><td colspan="4" style="text-align:center; color:var(--sub-text);">Loading your team...</td></tr></tbody>
+        </table>
+      </div>
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>
   </div>
@@ -661,14 +801,16 @@ initTheme();
    ===================================================================== */
 function tickClock(){
   const now = new Date();
-  const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const dateStr = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
-  let h = now.getHours();
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12; if (h === 0) h = 12;
-  const timeStr = `${String(h).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")} ${ampm}`;
-  document.getElementById("clock-day").innerText = days[now.getDay()];
+  // Always compute in India time (Asia/Kolkata), regardless of the
+  // visiting device's own timezone/clock settings.
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Kolkata", weekday:"long", day:"2-digit", month:"long", year:"numeric",
+    hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:true
+  }).formatToParts(now);
+  const get = (type) => (parts.find(p => p.type === type) || {}).value || "";
+  const dateStr = `${get("day")} ${get("month")} ${get("year")}`;
+  const timeStr = `${get("hour")}:${get("minute")}:${get("second")} ${get("dayPeriod")}`;
+  document.getElementById("clock-day").innerText = get("weekday");
   document.getElementById("clock-time").innerText = `${dateStr} | ${timeStr}`;
   const empDateEl = document.getElementById("emp-today-date");
   const empTimeEl = document.getElementById("emp-today-time");
@@ -762,7 +904,7 @@ function renderProfileDropdown(){
       <div class="dp-row"><span class="k">Date of Birth</span><span class="v">${p.dob || "Not set"}</span></div>
     </div>
     <div class="dp-actions">
-      <button class="btn-outline" onclick="openEditProfile(event)">✏️ Edit My Profile</button>
+      <button class="btn-orange" onclick="openEditProfile(event)">✏️ Edit My Profile</button>
       <button class="btn-outline" onclick="openChangePassword(event)">🔑 Change Password</button>
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>`;
@@ -809,7 +951,7 @@ function saveMyProfile(e){
     .then(data => {
       if (data && data.success === false) throw new Error(data.error || "Could not save profile.");
       allProfiles[currentUser.id] = data.profile || payload;
-      document.getElementById("emp-department-tag").innerText = `🏬 ${(data.profile && data.profile.department) || "General"}`;
+      renderProfileInfoGrid();
       statusDiv.innerText = "Profile saved successfully.";
       statusDiv.className = "status success";
       hideFullLoader();
@@ -899,7 +1041,7 @@ function renderNotifItems(items){
    SCREEN NAV / LOGOUT
    ===================================================================== */
 function showScreen(screenId){
-  ["login-screen","employee-dashboard","admin-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  ["login-screen","employee-dashboard","admin-dashboard","tl-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
 }
 function logout(e){
@@ -1021,7 +1163,7 @@ async function handleLogin(e){
       return;
     }
     if (data && data.success) {
-      loginSuccess(userInp, data.profile || {});
+      loginSuccess(userInp, data.profile || {}, data.role || "employee", data.team || null);
       loginBtn.disabled = false;
       return;
     }
@@ -1045,22 +1187,38 @@ async function handleLogin(e){
   loginBtn.disabled = false;
 }
 
-function loginSuccess(empId, profile){
+function renderProfileInfoGrid(){
+  const p = allProfiles[currentUser.id] || {};
+  document.getElementById("pi-designation").innerText = (currentUser && currentUser.designation) || "--";
+  document.getElementById("pi-department").innerText = p.department || "General";
+  document.getElementById("pi-mobile").innerText = p.mobile || "Not set";
+  document.getElementById("pi-email").innerText = p.email || "Not set";
+  document.getElementById("pi-joining").innerText = p.joiningDate || "Not set";
+  document.getElementById("pi-dob").innerText = p.dob || "Not set";
+}
+
+function loginSuccess(empId, profile, role, team){
   const matchedKey = Object.keys(employees).find(k => k.toLowerCase() === empId.toLowerCase()) || empId;
   currentUser = {
     id: matchedKey,
     name: profile.name || employees[matchedKey] || matchedKey,
-    role: "employee",
+    role: role === "tl" ? "tl" : "employee",
     designation: profile.designation || getDesignation(matchedKey),
     photo: ""
   };
   allProfiles[matchedKey] = profile;
+  setHeaderUser(currentUser.name, "");
+  fetchEmployeePhoto(currentUser.id);
+
+  if (currentUser.role === "tl") {
+    loadTLDashboard(matchedKey, currentUser.name, team || []);
+    return;
+  }
+
   document.getElementById("emp-name-display").innerText = currentUser.name;
   document.getElementById("emp-id-display").innerText = currentUser.id;
-  document.getElementById("emp-designation").innerText = `💼 ${currentUser.designation}`;
-  document.getElementById("emp-department-tag").innerText = `🏬 ${profile.department || "General"}`;
+  renderProfileInfoGrid();
   setAvatar(document.getElementById("emp-avatar"), currentUser.name, "");
-  setHeaderUser(currentUser.name, "");
   document.getElementById("attendance-status").value = "Present";
   document.getElementById("gps-box").classList.remove("show");
   document.getElementById("photo-upload-status").className = "status hidden";
@@ -1076,7 +1234,6 @@ function loginSuccess(empId, profile){
   updateLocationNote();
   showScreen("employee-dashboard");
   loadEmployeeHistory(currentUser.id);
-  fetchEmployeePhoto(currentUser.id);
 }
 
 function setAvatar(el, name, photoUrl){
@@ -1160,7 +1317,8 @@ function markAttendance(e){
       document.getElementById("gps-box").classList.add("show");
 
       const now = new Date();
-      if (now.getHours() >= LATE_CUTOFF_HOUR) {
+      const istHour = Number(new Intl.DateTimeFormat("en-US", { timeZone:"Asia/Kolkata", hour:"2-digit", hour12:false }).format(now));
+      if (istHour >= LATE_CUTOFF_HOUR) {
         document.getElementById("late-alert-box").classList.remove("hidden");
       }
 
@@ -1367,6 +1525,7 @@ function switchAdminTab(tab){
   if (tab === "analytics") renderCharts();
   if (tab === "reports") populateIndividualEmpSelect();
   if (tab === "today") loadTodayAttendance();
+  if (tab === "teams") { populateTeamManagementUI(); loadTeamsList(); }
 }
 
 /* ---- Admin: Today's attendance + download ---- */
@@ -1576,7 +1735,11 @@ function fetchAdminReport(e){
 function fetchAllProfiles(){
   fetch(`${API_URL}?action=getAllProfiles`)
     .then(res => res.json())
-    .then(data => { allProfiles = (data && data.profiles) || {}; })
+    .then(data => {
+      allProfiles = (data && data.profiles) || {};
+      const totalEl = document.getElementById("stat-total");
+      if (totalEl && Object.keys(allProfiles).length) totalEl.innerText = Object.keys(allProfiles).length;
+    })
     .catch(() => {});
 }
 
@@ -1657,7 +1820,7 @@ function renderStats(rows){
   document.getElementById("stat-absent").innerText = absent;
   document.getElementById("stat-leave").innerText = leave;
   document.getElementById("stat-tour").innerText = tour;
-  document.getElementById("stat-total").innerText = Object.keys(employees).length;
+  document.getElementById("stat-total").innerText = Object.keys(allProfiles).length || Object.keys(employees).length;
   setPct("present", present, total); setPct("absent", absent, total); setPct("leave", leave, total); setPct("tour", tour, total);
 }
 function setPct(key, count, total){
@@ -1967,6 +2130,187 @@ function loadLoginHistory(e){
           <td>${r.device||""}</td></tr>`).join("");
     })
     .catch(err => { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#dc2626;">Failed: ${err.message} (backend setup required)</td></tr>`; });
+}
+
+/* =====================================================================
+   ADMIN: TEAM MANAGEMENT
+   ===================================================================== */
+function allKnownEmployeeIds(){
+  const ids = new Set([...Object.keys(employees), ...Object.keys(allProfiles)]);
+  return Array.from(ids).sort();
+}
+function nameForEmpId(id){
+  return (allProfiles[id] && allProfiles[id].name) || employees[id] || id;
+}
+function populateTeamManagementUI(){
+  const ids = allKnownEmployeeIds();
+  const tlSelect = document.getElementById("team-tl-select");
+  tlSelect.innerHTML = '<option value="">Select a Team Leader...</option>' +
+    ids.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
+
+  const checklist = document.getElementById("team-members-checklist");
+  checklist.innerHTML = ids.map(id => `
+    <label style="display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px; cursor:pointer;">
+      <input type="checkbox" class="team-member-cb" value="${id}" style="width:auto; margin:0;">
+      ${nameForEmpId(id)} <span style="color:var(--sub-text); font-size:11.5px;">(${id})</span>
+    </label>`).join("");
+}
+function onTeamTLChange(){
+  const tlId = document.getElementById("team-tl-select").value;
+  document.querySelectorAll(".team-member-cb").forEach(cb => {
+    cb.disabled = (cb.value === tlId);
+    if (cb.value === tlId) cb.checked = false;
+  });
+}
+function saveTeam(e){
+  if (e) e.preventDefault();
+  const tlId = document.getElementById("team-tl-select").value;
+  const statusDiv = document.getElementById("team-save-status");
+  if (!tlId) { statusDiv.innerText = "Please select a Team Leader."; statusDiv.className = "status error"; return; }
+  const members = Array.from(document.querySelectorAll(".team-member-cb:checked")).map(cb => cb.value);
+  if (!members.length) { statusDiv.innerText = "Select at least one employee for this team."; statusDiv.className = "status error"; return; }
+
+  showFullLoader("Saving team...");
+  fetch(API_URL, {
+    method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"},
+    body: JSON.stringify({ action:"saveTeam", tlEmpId: tlId, tlName: nameForEmpId(tlId), members })
+  })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = "Team saved successfully.";
+      statusDiv.className = "status success";
+      showSuccessOverlay("Team Saved");
+      loadTeamsList();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not save team: " + err.message; statusDiv.className = "status error"; });
+}
+function loadTeamsList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("teams-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getTeams`)
+    .then(res => res.json())
+    .then(data => {
+      const teams = (data && data.teams) || [];
+      if (!teams.length) { box.innerHTML = '<div class="notif-empty">No teams created yet.</div>'; return; }
+      box.innerHTML = teams.map(t => `
+        <div class="notif-item">
+          <div class="n-ic">👤</div>
+          <div style="flex:1;">
+            <div class="n-title">TL: ${t.tlName} (${t.tlEmpId})</div>
+            <div class="n-sub">${t.members.length} member(s): ${t.members.join(", ")}</div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn-secondary" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="editTeam('${t.tlEmpId}')">✏️ Edit</button>
+              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px;" onclick="deleteTeamUI('${t.tlEmpId}')">🗑 Delete</button>
+            </div>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function editTeam(tlEmpId){
+  fetch(`${API_URL}?action=getTeams`)
+    .then(res => res.json())
+    .then(data => {
+      const team = ((data && data.teams) || []).find(t => t.tlEmpId === tlEmpId);
+      if (!team) return;
+      document.getElementById("team-tl-select").value = tlEmpId;
+      onTeamTLChange();
+      document.querySelectorAll(".team-member-cb").forEach(cb => { cb.checked = team.members.includes(cb.value); });
+      document.getElementById("team-tl-select").scrollIntoView({ behavior:"smooth", block:"center" });
+    });
+}
+function deleteTeamUI(tlEmpId){
+  if (!confirm(`Delete the team led by ${tlEmpId}? This won't affect their attendance records, only the team assignment.`)) return;
+  showFullLoader("Deleting team...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"deleteTeam", tlEmpId }) })
+    .then(res => res.json())
+    .then(() => { hideFullLoader(); loadTeamsList(); })
+    .catch(err => { hideFullLoader(); alert("Could not delete team: " + err.message); });
+}
+
+/* =====================================================================
+   TEAM LEADER DASHBOARD
+   ===================================================================== */
+let tlTeamMembers = [];
+let tlTodayStatusRows = [];
+
+function loadTLDashboard(tlEmpId, tlName, members){
+  currentUser.id = tlEmpId;
+  currentUser.name = tlName;
+  tlTeamMembers = members || [];
+  document.getElementById("tl-name-display").innerText = tlName;
+  document.getElementById("tl-id-display").innerText = tlEmpId;
+  setAvatar(document.getElementById("tl-avatar"), tlName, "");
+  showScreen("tl-dashboard");
+  refreshTLDashboard();
+}
+function refreshTLDashboard(e){
+  if (e) e.preventDefault();
+  const tbody = document.getElementById("tl-team-tbody");
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading your team...</td></tr>';
+  showFullLoader("Loading Team Data...");
+  fetch(`${API_URL}?action=getAttendance`)
+    .then(res => res.json())
+    .then(data => {
+      const rows = Array.isArray(data) ? data : (data.rows || data.data || []);
+      const todayKey = todayDateKey(new Date());
+      // Most recent row for TODAY per team member; anyone with no row yet defaults to Absent.
+      const latestToday = {};
+      rows.forEach(r => {
+        const id = r.empId || r.employeeId;
+        if (!tlTeamMembers.includes(id)) return;
+        if (todayDateKey(r.timestamp || r.date) === todayKey) latestToday[id] = r;
+      });
+      tlTodayStatusRows = tlTeamMembers.map(id => {
+        const r = latestToday[id];
+        return {
+          empId: id, name: nameForEmpId(id),
+          status: r ? displayStatus(r.status) : "Absent",
+          lastUpdate: r ? (r.timestamp || r.date) : "—"
+        };
+      });
+      renderTLStats();
+      renderTLTable();
+    })
+    .catch(err => { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#dc2626;">Failed to load: ${err.message}</td></tr>`; })
+    .finally(() => hideFullLoader());
+}
+function renderTLStats(){
+  document.getElementById("tl-stat-present").innerText = tlTodayStatusRows.filter(r=>r.status==="Present").length;
+  document.getElementById("tl-stat-absent").innerText = tlTodayStatusRows.filter(r=>r.status==="Absent").length;
+  document.getElementById("tl-stat-leave").innerText = tlTodayStatusRows.filter(r=>r.status==="Leave").length;
+  document.getElementById("tl-stat-tour").innerText = tlTodayStatusRows.filter(r=>r.status==="Tour").length;
+  document.getElementById("tl-stat-total").innerText = tlTeamMembers.length;
+}
+function renderTLTable(){
+  const q = (document.getElementById("tl-search-box").value || "").toLowerCase().trim();
+  const statusVal = document.getElementById("tl-status-filter").value;
+  const filtered = tlTodayStatusRows.filter(r => {
+    if (q && !r.name.toLowerCase().includes(q) && !r.empId.toLowerCase().includes(q)) return false;
+    if (statusVal && r.status !== statusVal) return false;
+    return true;
+  });
+  const tbody = document.getElementById("tl-team-tbody");
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--sub-text);">No matching team members.</td></tr>'; return; }
+  const badgeMap = { Present:"badge-present", Absent:"badge-absent", Leave:"badge-leave", Tour:"badge-tour" };
+  tbody.innerHTML = filtered.map(r => `
+    <tr><td>${r.empId}</td><td>${r.name}</td>
+      <td><span class="badge ${badgeMap[r.status]||'badge-absent'}">${r.status}</span></td>
+      <td>${r.lastUpdate}</td></tr>`).join("");
+}
+function downloadTLTeamPDF(e){
+  if (e) e.preventDefault();
+  if (!tlTodayStatusRows.length) { alert("No team data loaded yet."); return; }
+  const doc = newBrandedPDF(`Team Attendance — ${currentUser.name}`, `Generated: ${new Date().toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
+    head: [["Emp ID","Name","Today's Status","Last Update"]],
+    body: tlTodayStatusRows.map(r => [r.empId, r.name, r.status, r.lastUpdate])
+  }));
+  finishBrandedPDF(doc);
+  doc.save(`team_attendance_${currentUser.id.replace("/","_")}.pdf`);
 }
 
 /* =====================================================================
