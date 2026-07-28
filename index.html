@@ -41,6 +41,7 @@ body{
 }
 [data-theme="dark"] .container{background:rgba(17,24,39,.82); border-color:rgba(255,255,255,.08);}
 .container::before{content:""; display:block; height:4px; background:var(--accent-stripe); width:100%;}
+.container.login-mode::before{display:none;}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
 @keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
 @keyframes scaleIn{from{opacity:0;transform:scale(.94);}to{opacity:1;transform:scale(1);}}
@@ -273,16 +274,60 @@ select#attendance-status{cursor:pointer;}
 .gps-box .gps-line{display:flex; align-items:center; gap:8px;}
 .gps-box .gps-dot{width:9px; height:9px; border-radius:50%; background:var(--green); flex-shrink:0;}
 
-.login-hero{text-align:center; margin-bottom:22px;}
-.login-hero .login-logo{width:56px; height:56px; border-radius:16px; background:var(--header-grad); margin:0 auto 12px; display:flex; align-items:center; justify-content:center; font-size:26px; box-shadow:0 8px 22px rgba(37,99,235,.35); overflow:hidden;}
-.login-hero .login-logo img{width:100%; height:100%; object-fit:cover;}
-.login-hero h2{font-size:19px; font-weight:800; color:var(--text);}
-.login-hero p{font-size:12.5px; color:var(--sub-text); margin-top:3px;}
-.login-card{position:relative; overflow:hidden; background:var(--glass); backdrop-filter:blur(14px) saturate(160%); -webkit-backdrop-filter:blur(14px) saturate(160%); border:1px solid rgba(255,255,255,.35); border-radius:16px; padding:26px 24px; box-shadow:0 10px 34px rgba(15,23,42,.1); animation:scaleIn .4s cubic-bezier(.22,1,.36,1);}
-.login-card::before{content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; background:linear-gradient(160deg, rgba(255,255,255,.3) 0%, rgba(255,255,255,0) 40%);}
-[data-theme="dark"] .login-card::before{background:linear-gradient(160deg, rgba(255,255,255,.07) 0%, rgba(255,255,255,0) 40%);}
-.login-card > *{position:relative; z-index:1;}
-[data-theme="dark"] .login-card{box-shadow:0 8px 30px rgba(0,0,0,.3);}
+/* ---------- Login screen: two-panel split design ---------- */
+.container.login-mode .topbar, .container.login-mode .site-footer{display:none;}
+.container.login-mode .panel{padding:0;}
+.login-split{display:flex; min-height:600px;}
+.login-hero-panel{
+  flex:1 1 42%; background:linear-gradient(155deg,#0b1220 0%, #0f172a 45%, #1e293b 100%);
+  color:#fff; padding:42px 34px; display:flex; flex-direction:column; justify-content:space-between;
+  position:relative; overflow:hidden; min-width:0;
+}
+.login-hero-panel::before{
+  content:""; position:absolute; inset:0; opacity:.9; pointer-events:none;
+  background-image: radial-gradient(circle at 18% 18%, rgba(59,130,246,.35), transparent 42%),
+                     radial-gradient(circle at 85% 75%, rgba(249,115,22,.28), transparent 46%);
+}
+.lhp-brand{display:flex; align-items:center; gap:12px; position:relative; z-index:1;}
+.lhp-logo{width:46px; height:46px; border-radius:12px; background:rgba(255,255,255,.12); display:flex; align-items:center; justify-content:center; font-size:22px; border:1px solid rgba(255,255,255,.22); flex-shrink:0;}
+.lhp-brand-name{font-weight:800; font-size:13px; color:var(--orange); letter-spacing:.6px;}
+.lhp-brand-sub{font-size:12px; color:#cbd5e1; margin-top:1px; font-weight:600;}
+.lhp-badge{position:relative; z-index:1; display:inline-flex; align-items:center; gap:6px; background:rgba(59,130,246,.18); border:1px solid rgba(59,130,246,.4); color:#93c5fd; font-size:12px; font-weight:700; padding:7px 14px; border-radius:20px; margin:28px 0 18px; width:fit-content;}
+.lhp-heading{position:relative; z-index:1; font-size:27px; font-weight:800; line-height:1.28; margin-bottom:14px;}
+.lhp-desc{position:relative; z-index:1; font-size:13.5px; color:#cbd5e1; line-height:1.65; max-width:360px;}
+.lhp-footer{position:relative; z-index:1; border-top:1px solid rgba(255,255,255,.15); padding-top:16px; margin-top:24px; display:flex; flex-direction:column; gap:8px;}
+.lhp-security{font-size:11.5px; color:#94a3b8; display:flex; align-items:center; gap:6px;}
+.lhp-website{font-size:12px; color:#93c5fd; text-decoration:none; font-weight:700;}
+.lhp-website:hover{text-decoration:underline;}
+
+.login-form-panel{flex:1 1 58%; background:var(--card-bg); padding:46px 48px; display:flex; flex-direction:column; justify-content:center; min-width:0;}
+.login-form-panel h2{font-size:24px; font-weight:800; color:var(--text);}
+.lfp-sub{font-size:13px; color:var(--sub-text); margin:6px 0 26px;}
+.input-icon-wrap{position:relative; display:flex; align-items:center;}
+.input-icon-wrap .input-icon{position:absolute; left:14px; font-size:14px; color:var(--sub-text); pointer-events:none;}
+.input-icon-wrap input{padding-left:38px;}
+.input-icon-wrap .input-eye{position:absolute; right:14px; cursor:pointer; font-size:14px; color:var(--sub-text); user-select:none;}
+
+.quick-demo{margin-top:26px; border-top:1px dashed var(--border); padding-top:16px;}
+.qd-label{font-size:10.5px; font-weight:800; color:var(--sub-text); letter-spacing:.6px; margin-bottom:10px;}
+.qd-chips{display:flex; flex-wrap:wrap; gap:8px;}
+.qd-chip{width:auto; margin:0; padding:8px 14px; font-size:12px; background:var(--bg); border:1px solid var(--border); color:var(--text); font-weight:700;}
+.qd-chip:hover{background:var(--accent-soft); border-color:var(--accent); transform:none;}
+
+.help-toggle{width:auto; margin-top:16px; background:transparent; color:var(--sub-text); font-size:12px; font-weight:600; padding:4px 0; text-decoration:underline;}
+.help-toggle:hover{background:transparent; color:var(--accent);}
+.login-help-box{margin-top:10px; background:var(--accent-soft); border:1px solid #bfdbfe; border-radius:10px; padding:14px 16px; font-size:12.5px; animation:cardPopIn .3s ease both;}
+.login-help-box .lh-title{font-weight:800; margin-bottom:6px;}
+.login-help-box .lh-row{margin-top:4px;}
+.login-help-box a{color:var(--accent); font-weight:700; text-decoration:none;}
+
+@media (max-width:700px){
+  .login-split{flex-direction:column; min-height:0;}
+  .login-hero-panel{padding:30px 24px;}
+  .lhp-heading{font-size:22px;}
+  .lhp-desc{max-width:none;}
+  .login-form-panel{padding:32px 24px;}
+}
 
 .site-footer{text-align:center; padding:16px 20px 20px; font-size:11.5px; color:var(--sub-text); border-top:1px solid var(--border); margin-top:26px;}
 .site-footer b{color:var(--text);}
@@ -321,12 +366,12 @@ select#attendance-status{cursor:pointer;}
 </head>
 <body>
 
-<div class="container" data-theme="light">
+<div class="container login-mode" data-theme="light">
   <div class="topbar">
     <div class="topbar-left">
       <div class="logo" id="company-logo">🏢</div>
       <div>
-        <h1>EDUQUITY CAREAR TECHNOLOGY PVT LTD</h1>
+        <h1>UP IT SERVICES</h1>
         <p>Attendance Management System</p>
       </div>
     </div>
@@ -353,41 +398,89 @@ select#attendance-status{cursor:pointer;}
   <div class="panel">
     <!-- 1. LOGIN SCREEN -->
     <div id="login-screen">
-      <div class="login-hero">
-        <div class="login-logo">🏢</div>
-        <h2>Welcome Back</h2>
-        <p>Please Sign In to continue</p>
-      </div>
-      <div class="login-card" id="login-card-main">
-        <div class="form-group">
-          <label for="username">Employee ID / Admin Username</label>
-          <input type="text" id="username" value="EDU/" placeholder="e.g., EDU/1023" required>
-          <div class="hint" style="text-align:left; margin-top:6px;">Employees: type your number after "EDU/". Admin: clear this box and type "admin".</div>
+      <div class="login-split">
+        <!-- LEFT: BRAND / HERO PANEL -->
+        <div class="login-hero-panel">
+          <div>
+            <div class="lhp-brand">
+              <div class="lhp-logo">🏢</div>
+              <div>
+                <div class="lhp-brand-name">UP IT SERVICES</div>
+                <div class="lhp-brand-sub">Smart Attendance</div>
+              </div>
+            </div>
+            <div class="lhp-badge">⚡ Real-Time GPS Verification</div>
+            <h1 class="lhp-heading">Enterprise Attendance &amp; Team Dashboard</h1>
+            <p class="lhp-desc">Secure sign-in with live GPS check-ins, automated leave approvals, analytics &amp; PDF exports.</p>
+          </div>
+          <div class="lhp-footer">
+            <div class="lhp-security">🛡️ 256-bit Encrypted Session · Version 3.0</div>
+            <a class="lhp-website" href="https://upitservices.in" target="_blank" rel="noopener">🌐 upitservices.in</a>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" placeholder="Enter Password" required>
-        </div>
-        <button id="login-btn" onclick="handleLogin(event)">🔐 Sign In</button>
-        <button class="btn-link" onclick="showForgotPassword(event)">Forgot Password?</button>
-        <div id="login-status" class="status hidden"></div>
-      </div>
 
-      <!-- FORGOT PASSWORD PANEL -->
-      <div class="login-card hidden" id="forgot-password-card" style="margin-top:16px;">
-        <div class="form-group">
-          <label>Step 1: Enter your Employee ID</label>
-          <input type="text" id="fp-empid" placeholder="e.g., EDU/1023">
+        <!-- RIGHT: LOGIN FORM PANEL -->
+        <div class="login-form-panel">
+          <div id="login-card-main">
+            <h2>Welcome Back 👋</h2>
+            <p class="lfp-sub">Please enter your Employee ID and password to access your dashboard.</p>
+            <div class="form-group">
+              <label>EMPLOYEE ID / ADMIN USERNAME</label>
+              <div class="input-icon-wrap">
+                <span class="input-icon">👤</span>
+                <input type="text" id="username" value="EDU/" placeholder="e.g., EDU/1023" required>
+              </div>
+              <div class="hint" style="text-align:left; margin-top:6px;">Employees: type your number after <b>EDU/</b>. Admin: type <code>admin</code>.</div>
+            </div>
+            <div class="form-group">
+              <label>PASSWORD</label>
+              <div class="input-icon-wrap">
+                <span class="input-icon">🔒</span>
+                <input type="password" id="password" placeholder="Enter password" required>
+                <span class="input-eye" id="pwd-eye" onclick="togglePasswordVisibility()">👁️</span>
+              </div>
+            </div>
+            <button id="login-btn" onclick="handleLogin(event)">Sign In to Portal →</button>
+            <button class="btn-link" onclick="showForgotPassword(event)">🔑 Forgot Password?</button>
+            <div id="login-status" class="status hidden"></div>
+
+            <div class="quick-demo">
+              <div class="qd-label">QUICK-FILL EMPLOYEE ID</div>
+              <div class="qd-chips">
+                <button type="button" class="qd-chip" onclick="quickFillLogin('admin')">👑 Admin</button>
+                <button type="button" class="qd-chip" onclick="quickFillLogin('EDU/1023')">👥 Team Leader (EDU/1023)</button>
+                <button type="button" class="qd-chip" onclick="quickFillLogin('EDU/1348')">👤 Employee (EDU/1348)</button>
+              </div>
+            </div>
+
+            <button type="button" class="help-toggle" onclick="toggleLoginHelp(event)">❓ Need help signing in?</button>
+            <div class="login-help-box hidden" id="login-help-box">
+              <div class="lh-title">📞 Contact Support</div>
+              <div class="lh-row">👤 <b>Upendra Bais</b></div>
+              <div class="lh-row">📱 <a href="tel:9685602572">9685602572</a></div>
+              <div class="lh-row">✉️ <a href="mailto:upendra@upitservices.in">upendra@upitservices.in</a></div>
+            </div>
+          </div>
+
+          <!-- FORGOT PASSWORD PANEL -->
+          <div class="hidden" id="forgot-password-card">
+            <h2>Reset Your Password</h2>
+            <p class="lfp-sub">Follow the steps below to request a 6-digit reset code to your registered email.</p>
+            <div class="form-group">
+              <label>STEP 1: ENTER EMPLOYEE ID</label>
+              <input type="text" id="fp-empid" placeholder="e.g., EDU/1023">
+            </div>
+            <button class="btn-secondary" onclick="requestPasswordReset(event)">✉️ Send Code to Email</button>
+            <div class="form-group" style="margin-top:16px;">
+              <label>STEP 2: VERIFICATION CODE &amp; NEW PASSWORD</label>
+              <input type="text" id="fp-code" placeholder="6-digit reset code" style="margin-bottom:10px;">
+              <input type="password" id="fp-newpass" placeholder="New password (min 4 chars)">
+            </div>
+            <button class="btn-success" onclick="confirmPasswordReset(event)">🔒 Confirm Reset Password</button>
+            <button class="btn-link" onclick="hideForgotPassword(event)">← Back to Sign In</button>
+            <div id="fp-status" class="status hidden"></div>
+          </div>
         </div>
-        <button class="btn-secondary" onclick="requestPasswordReset(event)">📧 Send Reset Code to my Email</button>
-        <div class="form-group" style="margin-top:14px;">
-          <label>Step 2: Enter Code + New Password</label>
-          <input type="text" id="fp-code" placeholder="6-digit code from email" style="margin-bottom:10px;">
-          <input type="password" id="fp-newpass" placeholder="New password">
-        </div>
-        <button class="btn-success" onclick="confirmPasswordReset(event)">✔ Reset Password</button>
-        <button class="btn-link" onclick="hideForgotPassword(event)">← Back to Sign In</button>
-        <div id="fp-status" class="status hidden"></div>
       </div>
     </div>
 
@@ -1132,6 +1225,22 @@ function renderNotifItems(items){
 function showScreen(screenId){
   ["login-screen","employee-dashboard","admin-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
+  document.querySelector(".container").classList.toggle("login-mode", screenId === "login-screen");
+}
+function quickFillLogin(idOrAdmin){
+  document.getElementById("username").value = idOrAdmin;
+  document.getElementById("password").focus();
+}
+function togglePasswordVisibility(){
+  const pwd = document.getElementById("password");
+  const eye = document.getElementById("pwd-eye");
+  const isHidden = pwd.type === "password";
+  pwd.type = isHidden ? "text" : "password";
+  eye.innerText = isHidden ? "🙈" : "👁️";
+}
+function toggleLoginHelp(e){
+  if (e) e.preventDefault();
+  document.getElementById("login-help-box").classList.toggle("hidden");
 }
 function logout(e){
   if (e) e.preventDefault();
@@ -1945,7 +2054,7 @@ function newBrandedPDF(reportTitle, metaLine){
   doc.setTextColor(255, 255, 255);
   doc.setFont(undefined, "bold");
   doc.setFontSize(13);
-  doc.text("EDUQUITY CAREAR TECHNOLOGY PVT LTD", 14, 10);
+  doc.text("UP IT SERVICES", 14, 10);
   doc.setFont(undefined, "normal");
   doc.setFontSize(9);
   doc.text("Attendance Management System", 14, 16.5);
