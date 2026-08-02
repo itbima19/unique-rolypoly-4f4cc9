@@ -590,6 +590,40 @@ select#attendance-status{cursor:pointer;}
       <button id="submit-attendance-btn" onclick="markAttendance(event)">✔ Submit Attendance</button>
       <div id="attendance-status-msg" class="status hidden"></div>
 
+      <!-- MY ASSIGNED WORK (visible to every employee) -->
+      <div class="analytics-box">
+        <div class="analytics-title">🛠 My Assigned Work</div>
+        <div class="admin-actions" style="margin-bottom:14px;">
+          <button class="btn-secondary" onclick="loadMyWork(event)">🔄 Refresh My Work</button>
+        </div>
+        <div id="my-work-list"><div class="notif-empty">Click "Refresh My Work" to load your assigned tasks.</div></div>
+      </div>
+
+      <!-- COMPLETE WORK FORM (shown when finishing a task) -->
+      <div class="analytics-box hidden" id="complete-work-box">
+        <div class="analytics-title">✅ Complete Work — <span id="cw-title">--</span></div>
+        <div class="form-group">
+          <label>Photo Proof</label>
+          <input type="file" id="cw-photo" accept="image/*">
+        </div>
+        <div class="form-group">
+          <label>PDF Proof (optional)</label>
+          <input type="file" id="cw-pdf" accept=".pdf">
+        </div>
+        <div class="form-group">
+          <label>Client Signature</label>
+          <canvas id="cw-signature-pad" width="500" height="150" style="border:1.5px solid var(--border); border-radius:10px; width:100%; touch-action:none; background:#fff;"></canvas>
+          <button type="button" class="btn-outline" style="width:auto; margin-top:8px; padding:6px 14px; font-size:11.5px;" onclick="clearSignaturePad()">🧹 Clear Signature</button>
+        </div>
+        <div class="form-group">
+          <label>Remark / Comment</label>
+          <input type="text" id="cw-remark" placeholder="Any notes about the completed work">
+        </div>
+        <button class="btn-success" onclick="submitCompleteWork(event)">✔ Submit Completion</button>
+        <button class="btn-link" onclick="closeCompleteWorkForm(event)">← Cancel</button>
+        <div id="cw-status" class="status hidden"></div>
+      </div>
+
       <!-- MY TEAM LEADER (visible to every employee, if assigned to a team) -->
       <div class="last-attendance hidden" id="my-tl-box" style="flex-direction:column; align-items:flex-start; gap:6px;">
         <span style="font-weight:800;">👤 My Team Leader</span>
@@ -736,6 +770,8 @@ select#attendance-status{cursor:pointer;}
         <button class="tab-btn" onclick="switchAdminTab('leave')">🗓 Leave Approvals</button>
         <button class="tab-btn" onclick="switchAdminTab('history')">🔐 Login History</button>
         <button class="tab-btn" onclick="switchAdminTab('teams')">👥 Team Management</button>
+        <button class="tab-btn" onclick="switchAdminTab('holidays')">🎉 Holidays</button>
+        <button class="tab-btn" onclick="switchAdminTab('work')">🛠 Work Management</button>
       </div>
 
       <!-- OVERVIEW TAB -->
@@ -865,6 +901,37 @@ select#attendance-status{cursor:pointer;}
       <!-- TEAM MANAGEMENT TAB -->
       <div class="tab-content" id="tab-teams">
         <div class="analytics-box">
+          <div class="analytics-title">📤 Bulk Import Employees (Excel/CSV)</div>
+          <div class="hint" style="text-align:left; margin-bottom:10px;">
+            File needs a header row with these column names (any order, extra columns ignored):
+            <b>EmpId, Name, Mobile, Email, Department, Designation, JoiningDate, DOB</b>. Existing Employee IDs get updated; new ones get created with the default password.
+          </div>
+          <input type="file" id="bulk-import-file" accept=".xlsx,.xls,.csv" onchange="handleBulkImportFile(event)">
+          <div id="bulk-import-preview" class="hidden" style="margin-top:12px;">
+            <div class="scroll-box" style="max-height:220px;">
+              <table>
+                <thead><tr><th>EmpId</th><th>Name</th><th>Mobile</th><th>Email</th><th>Department</th><th>Designation</th></tr></thead>
+                <tbody id="bulk-import-preview-tbody"></tbody>
+              </table>
+            </div>
+            <button class="btn-success" style="margin-top:12px;" onclick="submitBulkImport(event)">📤 Import <span id="bulk-import-count">0</span> Employees</button>
+          </div>
+          <div id="bulk-import-status" class="status hidden"></div>
+        </div>
+
+        <div class="analytics-box">
+          <div class="analytics-title">🕒 Assign Shift Timing</div>
+          <div class="filters-box">
+            <select id="shift-emp-select"><option value="">Select employee...</option></select>
+            <input type="time" id="shift-start-input">
+            <input type="time" id="shift-end-input">
+            <button class="btn-secondary" style="margin:0;" onclick="saveEmployeeShift(event)">💾 Save Shift</button>
+          </div>
+          <div class="hint" style="text-align:left;">Sets when this employee's shift starts/ends. "Present" marked after (shift start + 15 min grace) is flagged late for them specifically, instead of the default 10:00 AM cutoff.</div>
+          <div id="shift-save-status" class="status hidden"></div>
+        </div>
+
+        <div class="analytics-box">
           <div class="analytics-title">👥 Create / Edit Team</div>
           <div class="form-group">
             <label>Select Team Leader</label>
@@ -886,6 +953,94 @@ select#attendance-status{cursor:pointer;}
           <div class="analytics-title">📋 Existing Teams</div>
           <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadTeamsList(event)">🔄 Refresh Teams</button></div>
           <div id="teams-list"><div class="notif-empty">Click "Refresh Teams" to load.</div></div>
+        </div>
+      </div>
+
+      <!-- HOLIDAYS TAB -->
+      <div class="tab-content" id="tab-holidays">
+        <div class="analytics-box">
+          <div class="analytics-title">🎉 Add Company Holiday</div>
+          <div class="filters-box">
+            <input type="date" id="holiday-date-input">
+            <input type="text" id="holiday-name-input" placeholder="Holiday name (e.g. Diwali)">
+            <button class="btn-success" style="margin:0;" onclick="saveHoliday(event)">➕ Add Holiday</button>
+          </div>
+          <div id="holiday-save-status" class="status hidden"></div>
+        </div>
+        <div class="analytics-box">
+          <div class="analytics-title">📅 Upcoming / All Holidays</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadHolidaysList(event)">🔄 Refresh</button></div>
+          <div id="holidays-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
+        </div>
+      </div>
+
+      <!-- WORK MANAGEMENT TAB (Admin) -->
+      <div class="tab-content" id="tab-work">
+        <div class="analytics-box">
+          <div class="analytics-title">➕ Create New Work Order</div>
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="wo-title" placeholder="e.g., Router installation at client site">
+          </div>
+          <div class="filters-box">
+            <input type="text" id="wo-client" placeholder="Client Name">
+            <input type="text" id="wo-address" placeholder="Location / Address">
+            <select id="wo-priority">
+              <option value="Low">Priority: Low</option>
+              <option value="Medium" selected>Priority: Medium</option>
+              <option value="High">Priority: High</option>
+              <option value="Urgent">Priority: Urgent</option>
+            </select>
+            <input type="date" id="wo-due-date">
+          </div>
+          <div class="form-group">
+            <label>Assign To (select one or more)</label>
+            <div class="scroll-box" style="max-height:180px;">
+              <div id="wo-assign-checklist" style="padding:8px 4px;"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="wo-description" placeholder="Work details / instructions">
+          </div>
+          <button class="btn-success" onclick="createWorkOrder(event)">✔ Create Work Order</button>
+          <div id="wo-create-status" class="status hidden"></div>
+        </div>
+
+        <div class="analytics-box">
+          <div class="analytics-title">📊 Work Orders — Live</div>
+          <div class="stats-row" id="wo-stats-row">
+            <div class="stat-card"><div class="icon">🆕</div><div class="num" id="wo-stat-assigned">0</div><div class="label">Assigned</div></div>
+            <div class="stat-card present"><div class="icon">✅</div><div class="num" id="wo-stat-accepted">0</div><div class="label">Accepted</div></div>
+            <div class="stat-card leave"><div class="icon">🚧</div><div class="num" id="wo-stat-progress">0</div><div class="label">In Progress</div></div>
+            <div class="stat-card tour"><div class="icon">🏁</div><div class="num" id="wo-stat-completed">0</div><div class="label">Completed</div></div>
+            <div class="stat-card absent"><div class="icon">❌</div><div class="num" id="wo-stat-rejected">0</div><div class="label">Rejected</div></div>
+          </div>
+          <div class="admin-actions">
+            <button class="btn-secondary" onclick="loadWorkOrdersList(event)">🔄 Refresh (Live)</button>
+            <button class="btn-success" onclick="exportWorkOrdersCSV(event)">⬇ Download CSV</button>
+            <button class="btn-secondary" onclick="exportWorkOrdersPDF(event)">📄 Download PDF</button>
+          </div>
+          <div class="filters-box">
+            <input type="text" id="wo-search-box" placeholder="🔍 Search work orders..." oninput="renderWorkOrdersTable()">
+            <select id="wo-status-filter" onchange="renderWorkOrdersTable()">
+              <option value="">All Status</option>
+              <option value="Assigned">Assigned</option>
+              <option value="Accepted">Accepted</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+            <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub-text);">
+              <input type="checkbox" id="wo-live-poll" style="width:auto;" onchange="toggleWorkOrdersLivePoll()"> Auto-refresh every 20s
+            </label>
+          </div>
+          <div class="scroll-box">
+            <table>
+              <thead><tr><th>Work ID</th><th>Title</th><th>Assigned To</th><th>Status</th><th>Due Date</th><th></th></tr></thead>
+              <tbody id="wo-table-tbody"><tr><td colspan="6" style="text-align:center; color:var(--sub-text);">Click "Refresh (Live)" to load.</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -1722,7 +1877,9 @@ function switchAdminTab(tab){
   if (tab === "analytics") renderCharts();
   if (tab === "reports") populateIndividualEmpSelect();
   if (tab === "today") loadTodayAttendance();
-  if (tab === "teams") { populateTeamManagementUI(); loadTeamsList(); }
+  if (tab === "teams") { populateTeamManagementUI(); loadTeamsList(); populateShiftEmpSelect(); }
+  if (tab === "holidays") loadHolidaysList();
+  if (tab === "work") { populateWorkAssignSelect(); loadWorkOrdersList(); }
 }
 
 /* ---- Admin: Today's attendance + download ---- */
@@ -2339,6 +2496,481 @@ function allKnownEmployeeIds(){
 function nameForEmpId(id){
   return (allProfiles[id] && allProfiles[id].name) || employees[id] || id;
 }
+/* =====================================================================
+   BULK EMPLOYEE IMPORT (Excel/CSV via SheetJS)
+   ===================================================================== */
+let bulkImportRows = [];
+function handleBulkImportFile(event){
+  const file = event.target.files[0];
+  const statusDiv = document.getElementById("bulk-import-status");
+  if (!file) return;
+  statusDiv.className = "status hidden";
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const wb = XLSX.read(e.target.result, { type:"array", cellDates:true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const json = XLSX.utils.sheet_to_json(ws, { defval:"" });
+      const keyMap = { empid:"empId", "emp id":"empId", name:"name", mobile:"mobile", email:"email",
+        department:"department", designation:"designation", joiningdate:"joiningDate", "joining date":"joiningDate",
+        dob:"dob", "date of birth":"dob" };
+      bulkImportRows = json.map(row => {
+        const out = {};
+        Object.keys(row).forEach(k => {
+          const norm = keyMap[k.toString().trim().toLowerCase()];
+          if (norm) out[norm] = row[k] instanceof Date ? row[k].toISOString().slice(0,10) : String(row[k]).trim();
+        });
+        return out;
+      }).filter(r => r.empId);
+
+      if (!bulkImportRows.length) {
+        statusDiv.innerText = "No valid rows found — check that the header row has an 'EmpId' column.";
+        statusDiv.className = "status error";
+        document.getElementById("bulk-import-preview").classList.add("hidden");
+        return;
+      }
+      const tbody = document.getElementById("bulk-import-preview-tbody");
+      tbody.innerHTML = bulkImportRows.slice(0, 50).map(r => `
+        <tr><td>${r.empId||""}</td><td>${r.name||""}</td><td>${r.mobile||""}</td><td>${r.email||""}</td><td>${r.department||""}</td><td>${r.designation||""}</td></tr>
+      `).join("");
+      document.getElementById("bulk-import-count").innerText = bulkImportRows.length;
+      document.getElementById("bulk-import-preview").classList.remove("hidden");
+      if (bulkImportRows.length > 50) {
+        statusDiv.innerText = `Showing first 50 of ${bulkImportRows.length} rows — all ${bulkImportRows.length} will be imported.`;
+        statusDiv.className = "status info";
+      }
+    }catch(err){
+      statusDiv.innerText = "Could not read file: " + err.message;
+      statusDiv.className = "status error";
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function submitBulkImport(e){
+  if (e) e.preventDefault();
+  if (!bulkImportRows.length) { alert("No rows to import."); return; }
+  const statusDiv = document.getElementById("bulk-import-status");
+  showFullLoader(`Importing ${bulkImportRows.length} employees...`);
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"bulkImportEmployees", rows: bulkImportRows }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = `Done — ${data.created} created, ${data.updated} updated${data.skipped ? `, ${data.skipped} skipped` : ""}.`;
+      statusDiv.className = "status success";
+      showSuccessOverlay("Employees Imported");
+      document.getElementById("bulk-import-preview").classList.add("hidden");
+      document.getElementById("bulk-import-file").value = "";
+      bulkImportRows = [];
+      fetchAllProfiles();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Import failed: " + err.message; statusDiv.className = "status error"; });
+}
+
+/* =====================================================================
+   SHIFT MANAGEMENT
+   ===================================================================== */
+function populateShiftEmpSelect(){
+  const sel = document.getElementById("shift-emp-select");
+  const ids = allKnownEmployeeIds();
+  sel.innerHTML = '<option value="">Select employee...</option>' +
+    ids.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
+}
+function saveEmployeeShift(e){
+  if (e) e.preventDefault();
+  const empId = document.getElementById("shift-emp-select").value;
+  const shiftStart = document.getElementById("shift-start-input").value;
+  const shiftEnd = document.getElementById("shift-end-input").value;
+  const statusDiv = document.getElementById("shift-save-status");
+  if (!empId) { statusDiv.innerText = "Select an employee first."; statusDiv.className = "status error"; return; }
+  if (!shiftStart) { statusDiv.innerText = "Set a shift start time."; statusDiv.className = "status error"; return; }
+  showFullLoader("Saving shift...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"setShift", empId, shiftStart, shiftEnd }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = `Shift saved for ${nameForEmpId(empId)}: ${shiftStart}${shiftEnd ? " - " + shiftEnd : ""}.`;
+      statusDiv.className = "status success";
+      fetchAllProfiles();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not save shift: " + err.message; statusDiv.className = "status error"; });
+}
+
+/* =====================================================================
+   HOLIDAY CALENDAR
+   ===================================================================== */
+let cachedHolidays = [];
+function loadHolidaysList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("holidays-list");
+  if (box) box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  return fetch(`${API_URL}?action=getHolidays`)
+    .then(res => res.json())
+    .then(data => {
+      cachedHolidays = (data && data.holidays) || [];
+      cachedHolidays.sort((a,b) => a.date.localeCompare(b.date));
+      if (!box) return;
+      if (!cachedHolidays.length) { box.innerHTML = '<div class="notif-empty">No holidays added yet.</div>'; return; }
+      box.innerHTML = cachedHolidays.map(h => `
+        <div class="notif-item">
+          <div class="n-ic">🎉</div>
+          <div style="flex:1; display:flex; justify-content:space-between; align-items:center;">
+            <div><div class="n-title">${h.name}</div><div class="n-sub">${h.date}</div></div>
+            <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="deleteHolidayUI('${h.date}')">🗑 Remove</button>
+          </div>
+        </div>`).join("");
+    })
+    .catch(() => { if (box) box.innerHTML = '<div class="notif-empty">Could not load holidays.</div>'; });
+}
+function saveHoliday(e){
+  if (e) e.preventDefault();
+  const date = document.getElementById("holiday-date-input").value;
+  const name = document.getElementById("holiday-name-input").value.trim();
+  const statusDiv = document.getElementById("holiday-save-status");
+  if (!date || !name) { statusDiv.innerText = "Enter both a date and a name."; statusDiv.className = "status error"; return; }
+  showFullLoader("Saving holiday...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"saveHoliday", date, name }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = "Holiday added."; statusDiv.className = "status success";
+      document.getElementById("holiday-name-input").value = "";
+      loadHolidaysList();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not save: " + err.message; statusDiv.className = "status error"; });
+}
+function deleteHolidayUI(date){
+  if (!confirm("Remove this holiday?")) return;
+  showFullLoader("Removing...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"deleteHoliday", date }) })
+    .then(res => res.json())
+    .then(() => { hideFullLoader(); loadHolidaysList(); })
+    .catch(err => { hideFullLoader(); alert("Could not remove: " + err.message); });
+}
+
+/* =====================================================================
+   WORK MANAGEMENT — shared helpers
+   ===================================================================== */
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+function woBadgeClass(status){
+  return { Assigned:"badge-pending", Accepted:"badge-present", "In Progress":"badge-leave", Completed:"badge-present", Rejected:"badge-absent" }[status] || "badge-absent";
+}
+function detectDeviceInfo(){
+  const ua = navigator.userAgent || "";
+  const platform = /Android/i.test(ua) ? "Android" : /iPhone|iPad/i.test(ua) ? "iOS" : /Windows/i.test(ua) ? "Windows" : /Mac/i.test(ua) ? "Mac" : "Unknown";
+  const browser = /Chrome/i.test(ua) ? "Chrome" : /Firefox/i.test(ua) ? "Firefox" : /Safari/i.test(ua) ? "Safari" : /Edg/i.test(ua) ? "Edge" : "Browser";
+  return `${platform} · ${browser}`;
+}
+function namesForIds(ids){
+  return (ids || []).map(id => `${nameForEmpId(id)} (${id})`).join(", ");
+}
+
+/* =====================================================================
+   WORK MANAGEMENT — Admin side
+   ===================================================================== */
+let workOrdersCache = [];
+let woPollTimer = null;
+
+function populateWorkAssignSelect(){
+  const box = document.getElementById("wo-assign-checklist");
+  const ids = allKnownEmployeeIds();
+  box.innerHTML = ids.map(id => `
+    <label style="display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px; cursor:pointer;">
+      <input type="checkbox" class="wo-assign-cb" value="${id}" style="width:auto; margin:0;">
+      ${nameForEmpId(id)} <span style="color:var(--sub-text); font-size:11.5px;">(${id})</span>
+    </label>`).join("");
+}
+function createWorkOrder(e){
+  if (e) e.preventDefault();
+  const statusDiv = document.getElementById("wo-create-status");
+  const title = document.getElementById("wo-title").value.trim();
+  const assignedTo = Array.from(document.querySelectorAll(".wo-assign-cb:checked")).map(cb => cb.value);
+  if (!title || !assignedTo.length) { statusDiv.innerText = "Title and at least one assignee are required."; statusDiv.className = "status error"; return; }
+
+  showFullLoader("Creating work order...");
+  const payload = {
+    action: "createWork",
+    title, clientName: document.getElementById("wo-client").value.trim(),
+    address: document.getElementById("wo-address").value.trim(),
+    location: document.getElementById("wo-address").value.trim(),
+    priority: document.getElementById("wo-priority").value,
+    dueDate: document.getElementById("wo-due-date").value,
+    description: document.getElementById("wo-description").value.trim(),
+    assignedTo, createdBy: currentUser ? currentUser.name : "Admin"
+  };
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = `Work order ${data.workId} created and assigned to ${namesForIds(assignedTo)}.`;
+      statusDiv.className = "status success";
+      showSuccessOverlay("Work Order Created");
+      ["wo-title","wo-client","wo-address","wo-description"].forEach(id => document.getElementById(id).value = "");
+      document.querySelectorAll(".wo-assign-cb:checked").forEach(cb => cb.checked = false);
+      loadWorkOrdersList();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not create work order: " + err.message; statusDiv.className = "status error"; });
+}
+function loadWorkOrdersList(e){
+  if (e) e.preventDefault();
+  const tbody = document.getElementById("wo-table-tbody");
+  if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</td></tr>';
+  return fetch(`${API_URL}?action=getWorkOrders`)
+    .then(res => res.json())
+    .then(data => {
+      workOrdersCache = (data && data.workOrders) || [];
+      renderWorkOrdersStats();
+      renderWorkOrdersTable();
+    })
+    .catch(err => { if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#dc2626;">Failed: ${err.message}</td></tr>`; });
+}
+function renderWorkOrdersStats(){
+  const c = (s) => workOrdersCache.filter(w => w.status === s).length;
+  document.getElementById("wo-stat-assigned").innerText = c("Assigned");
+  document.getElementById("wo-stat-accepted").innerText = c("Accepted");
+  document.getElementById("wo-stat-progress").innerText = c("In Progress");
+  document.getElementById("wo-stat-completed").innerText = c("Completed");
+  document.getElementById("wo-stat-rejected").innerText = c("Rejected");
+}
+function renderWorkOrdersTable(){
+  const q = (document.getElementById("wo-search-box").value || "").toLowerCase().trim();
+  const statusVal = document.getElementById("wo-status-filter").value;
+  const rows = workOrdersCache.filter(w => {
+    if (statusVal && w.status !== statusVal) return false;
+    if (q && !(`${w.workId} ${w.title} ${namesForIds(w.assignedTo)}`.toLowerCase().includes(q))) return false;
+    return true;
+  }).slice().reverse();
+  const tbody = document.getElementById("wo-table-tbody");
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--sub-text);">No work orders found.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(w => `
+    <tr><td>${w.workId}</td><td>${w.title}</td><td>${namesForIds(w.assignedTo)}</td>
+      <td><span class="badge ${woBadgeClass(w.status)}">${w.status}</span></td>
+      <td>${w.dueDate || "—"}</td>
+      <td><button class="btn-secondary" style="margin:0; padding:5px 10px; font-size:11px; width:auto;" onclick="viewWorkDetail('${w.workId}')">🔍 Details</button></td></tr>`).join("");
+}
+function viewWorkDetail(workId){
+  showFullLoader("Loading details...");
+  fetch(`${API_URL}?action=getWorkDetail&workId=${encodeURIComponent(workId)}`)
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      const acc = (data && data.acceptance) || [];
+      const comp = (data && data.completion) || [];
+      let msg = `Work Order: ${workId}\n\n--- Acceptance / Status Log ---\n`;
+      msg += acc.length ? acc.map(a => `${a.action} by ${a.empName} (${a.empId}) at ${a.timestamp}${a.address ? "\nLocation: " + a.address : ""}`).join("\n\n") : "No activity yet.";
+      msg += `\n\n--- Completion Details ---\n`;
+      msg += comp.length ? comp.map(c => `Completed by ${c.empName} at ${c.completedAt}\nRemark: ${c.remark || "—"}\nPhoto: ${c.photoUrl || "—"}\nPDF: ${c.pdfUrl || "—"}\nSignature: ${c.signatureUrl || "—"}`).join("\n\n") : "Not completed yet.";
+      alert(msg);
+    })
+    .catch(err => { hideFullLoader(); alert("Could not load details: " + err.message); });
+}
+function exportWorkOrdersCSV(e){
+  if (e) e.preventDefault();
+  if (!workOrdersCache.length) { alert("No data loaded. Click 'Refresh (Live)' first."); return; }
+  const header = ["Work ID","Title","Client","Assigned To","Status","Priority","Due Date","Created By","Created At"];
+  const rows = [header.join(",")];
+  workOrdersCache.forEach(w => {
+    const row = [w.workId,w.title,w.clientName,namesForIds(w.assignedTo),w.status,w.priority,w.dueDate,w.createdBy,w.createdAt]
+      .map(v => `"${String(v||"").replace(/"/g,'""')}"`);
+    rows.push(row.join(","));
+  });
+  const blob = new Blob([rows.join("\n")], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = `work_orders_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+}
+function exportWorkOrdersPDF(e){
+  if (e) e.preventDefault();
+  if (!workOrdersCache.length) { alert("No data loaded. Click 'Refresh (Live)' first."); return; }
+  const doc = newBrandedPDF("Work Orders Report", `Generated: ${new Date().toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
+    head: [["Work ID","Title","Assigned To","Status","Due Date"]],
+    body: workOrdersCache.map(w => [w.workId, w.title, namesForIds(w.assignedTo), w.status, w.dueDate||"—"])
+  }));
+  finishBrandedPDF(doc);
+  doc.save(`work_orders_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+function toggleWorkOrdersLivePoll(){
+  const on = document.getElementById("wo-live-poll").checked;
+  if (woPollTimer) { clearInterval(woPollTimer); woPollTimer = null; }
+  if (on) woPollTimer = setInterval(() => loadWorkOrdersList(), 20000);
+}
+
+/* =====================================================================
+   WORK MANAGEMENT — Employee side
+   ===================================================================== */
+let myWorkCache = [];
+let activeCompleteWorkId = null;
+
+function loadMyWork(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("my-work-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getWorkOrders`)
+    .then(res => res.json())
+    .then(data => {
+      const all = (data && data.workOrders) || [];
+      myWorkCache = all.filter(w => (w.assignedTo || []).includes(currentUser.id));
+      renderMyWorkList();
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function renderMyWorkList(){
+  const box = document.getElementById("my-work-list");
+  if (!myWorkCache.length) { box.innerHTML = '<div class="notif-empty">No work assigned to you right now.</div>'; return; }
+  const active = myWorkCache.filter(w => w.status !== "Completed" && w.status !== "Rejected");
+  const past = myWorkCache.filter(w => w.status === "Completed" || w.status === "Rejected");
+  const renderCard = (w) => {
+    let actions = "";
+    if (w.status === "Assigned") {
+      actions = `<button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="acceptWorkOrder('${w.workId}')">✔ Accept</button>
+                 <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="rejectWorkOrder('${w.workId}')">✕ Reject</button>`;
+    } else if (w.status === "Accepted") {
+      actions = `<button class="btn-secondary" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="startWorkOrder('${w.workId}')">🚀 Start Work</button>`;
+    } else if (w.status === "In Progress") {
+      actions = `<button class="btn-orange" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="openCompleteWorkForm('${w.workId}','${(w.title||"").replace(/'/g,"\\'")}')">✅ Complete Work</button>`;
+    }
+    return `<div class="notif-item">
+      <div class="n-ic">🛠</div>
+      <div style="flex:1;">
+        <div class="n-title">${w.title} <span class="badge ${woBadgeClass(w.status)}" style="margin-left:6px;">${w.status}</span></div>
+        <div class="n-sub">${w.workId} · ${w.clientName || "—"} · ${w.address || "—"}${w.dueDate ? " · Due: "+w.dueDate : ""}</div>
+        ${w.description ? `<div class="n-sub" style="margin-top:2px;">${w.description}</div>` : ""}
+        ${actions ? `<div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">${actions}</div>` : ""}
+      </div>
+    </div>`;
+  };
+  box.innerHTML =
+    (active.length ? active.map(renderCard).join("") : '<div class="notif-empty">No active work right now.</div>') +
+    (past.length ? `<div class="analytics-title" style="margin:16px 0 8px; font-size:12px;">📜 Work History</div>` + past.map(renderCard).join("") : "");
+}
+function acceptWorkOrder(workId){
+  if (!navigator.geolocation) { alert("GPS not supported on this device."); return; }
+  showFullLoader("Getting your location...");
+  navigator.geolocation.getCurrentPosition(async (position) => {
+    const lat = position.coords.latitude.toFixed(6);
+    const lon = position.coords.longitude.toFixed(6);
+    const address = await reverseGeocode(lat, lon);
+    fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({
+      action:"acceptWork", workId, empId: currentUser.id, empName: currentUser.name,
+      lat, lon, address, device: detectDeviceInfo()
+    })})
+      .then(res => res.json())
+      .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); showSuccessOverlay("Work Accepted"); loadMyWork(); })
+      .catch(err => { hideFullLoader(); alert("Could not accept: " + err.message); });
+  }, (err) => { hideFullLoader(); alert("Could not get your location: " + err.message); });
+}
+function rejectWorkOrder(workId){
+  const reason = prompt("Reason for rejecting this work (optional):") || "";
+  showFullLoader("Rejecting work...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"rejectWork", workId, empId: currentUser.id, empName: currentUser.name, address: reason }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); loadMyWork(); })
+    .catch(err => { hideFullLoader(); alert("Could not reject: " + err.message); });
+}
+function startWorkOrder(workId){
+  showFullLoader("Starting work...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"startWork", workId, empId: currentUser.id, empName: currentUser.name }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); showSuccessOverlay("Work Started"); loadMyWork(); })
+    .catch(err => { hideFullLoader(); alert("Could not start: " + err.message); });
+}
+
+/* ---- Signature pad (plain canvas) ---- */
+let sigCtx = null, sigDrawing = false;
+function initSignaturePad(){
+  const canvas = document.getElementById("cw-signature-pad");
+  canvas.width = canvas.clientWidth; canvas.height = 150;
+  sigCtx = canvas.getContext("2d");
+  sigCtx.strokeStyle = "#0f172a"; sigCtx.lineWidth = 2; sigCtx.lineCap = "round";
+  const pos = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  };
+  const start = (e) => { sigDrawing = true; const p = pos(e); sigCtx.beginPath(); sigCtx.moveTo(p.x, p.y); e.preventDefault(); };
+  const move = (e) => { if (!sigDrawing) return; const p = pos(e); sigCtx.lineTo(p.x, p.y); sigCtx.stroke(); e.preventDefault(); };
+  const end = () => { sigDrawing = false; };
+  canvas.onmousedown = start; canvas.onmousemove = move; canvas.onmouseup = end; canvas.onmouseleave = end;
+  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+}
+function clearSignaturePad(){
+  if (sigCtx) sigCtx.clearRect(0, 0, sigCtx.canvas.width, sigCtx.canvas.height);
+}
+function openCompleteWorkForm(workId, title){
+  activeCompleteWorkId = workId;
+  document.getElementById("cw-title").innerText = title;
+  document.getElementById("cw-photo").value = "";
+  document.getElementById("cw-pdf").value = "";
+  document.getElementById("cw-remark").value = "";
+  document.getElementById("cw-status").className = "status hidden";
+  document.getElementById("complete-work-box").classList.remove("hidden");
+  setTimeout(initSignaturePad, 50);
+  document.getElementById("complete-work-box").scrollIntoView({ behavior:"smooth", block:"center" });
+}
+function closeCompleteWorkForm(e){
+  if (e) e.preventDefault();
+  activeCompleteWorkId = null;
+  document.getElementById("complete-work-box").classList.add("hidden");
+}
+async function submitCompleteWork(e){
+  if (e) e.preventDefault();
+  const statusDiv = document.getElementById("cw-status");
+  if (!activeCompleteWorkId) return;
+  const photoFile = document.getElementById("cw-photo").files[0];
+  if (!photoFile) { statusDiv.innerText = "Photo proof is required."; statusDiv.className = "status error"; return; }
+
+  showFullLoader("Getting your location...");
+  try{
+    let lat = "", lon = "", address = "";
+    if (navigator.geolocation) {
+      try{
+        const position = await new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject));
+        lat = position.coords.latitude.toFixed(6);
+        lon = position.coords.longitude.toFixed(6);
+        address = await reverseGeocode(lat, lon);
+      }catch(geoErr){ /* location optional at completion — continue without it */ }
+    }
+
+    showFullLoader("Submitting completion...");
+    const photoBase64 = await fileToBase64(photoFile);
+    const pdfFile = document.getElementById("cw-pdf").files[0];
+    const pdfBase64 = pdfFile ? await fileToBase64(pdfFile) : "";
+    const signatureBase64 = sigCtx ? sigCtx.canvas.toDataURL("image/png").split(",")[1] : "";
+
+    const payload = {
+      action:"completeWork", workId: activeCompleteWorkId, empId: currentUser.id, empName: currentUser.name,
+      photoBase64, photoMime: photoFile.type,
+      pdfBase64,
+      signatureBase64,
+      remark: document.getElementById("cw-remark").value.trim(),
+      lat, lon, address
+    };
+    const res = await fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    hideFullLoader();
+    if (data && data.success === false) throw new Error(data.error);
+    statusDiv.innerText = "Work marked as completed."; statusDiv.className = "status success";
+    showSuccessOverlay("Work Completed");
+    closeCompleteWorkForm();
+    loadMyWork();
+  }catch(err){
+    hideFullLoader();
+    statusDiv.innerText = "Could not submit: " + err.message; statusDiv.className = "status error";
+  }
+}
+
 function populateTeamManagementUI(){
   const ids = allKnownEmployeeIds();
   const tlSelect = document.getElementById("team-tl-select");
