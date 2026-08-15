@@ -772,6 +772,11 @@ select#attendance-status{cursor:pointer;}
         <button class="tab-btn" onclick="switchAdminTab('teams')">👥 Team Management</button>
         <button class="tab-btn" onclick="switchAdminTab('holidays')">🎉 Holidays</button>
         <button class="tab-btn" onclick="switchAdminTab('work')">🛠 Work Management</button>
+        <button class="tab-btn" onclick="switchAdminTab('regularization')">📝 Regularization</button>
+        <button class="tab-btn" onclick="switchAdminTab('announcements')">📢 Announcements</button>
+        <button class="tab-btn" onclick="switchAdminTab('expenses')">💰 Expense Claims</button>
+        <button class="tab-btn" onclick="switchAdminTab('reportbuilder')">🧩 Custom Report</button>
+        <button class="tab-btn" onclick="switchAdminTab('admins')">🔑 Manage Admins</button>
       </div>
 
       <!-- OVERVIEW TAB -->
@@ -1041,6 +1046,108 @@ select#attendance-status{cursor:pointer;}
               <tbody id="wo-table-tbody"><tr><td colspan="6" style="text-align:center; color:var(--sub-text);">Click "Refresh (Live)" to load.</td></tr></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- REGULARIZATION TAB -->
+      <div class="tab-content" id="tab-regularization">
+        <div class="analytics-box">
+          <div class="analytics-title">📝 Pending Attendance Correction Requests</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadRegularizationList(event)">🔄 Refresh</button></div>
+          <div id="regularization-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
+        </div>
+      </div>
+
+      <!-- ANNOUNCEMENTS TAB -->
+      <div class="tab-content" id="tab-announcements">
+        <div class="analytics-box">
+          <div class="analytics-title">📢 Post New Announcement</div>
+          <div class="form-group">
+            <label>Title</label>
+            <input type="text" id="an-title" placeholder="e.g., Office closed on 15th August">
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <input type="text" id="an-message" placeholder="Announcement details">
+          </div>
+          <button class="btn-success" onclick="postAnnouncementUI(event)">📢 Post to All Employees</button>
+          <div id="an-post-status" class="status hidden"></div>
+        </div>
+        <div class="analytics-box">
+          <div class="analytics-title">📋 All Announcements</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadAnnouncementsAdminList(event)">🔄 Refresh</button></div>
+          <div id="announcements-admin-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
+        </div>
+      </div>
+
+      <!-- EXPENSE CLAIMS TAB -->
+      <div class="tab-content" id="tab-expenses">
+        <div class="analytics-box">
+          <div class="analytics-title">💰 All Expense Claims</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadExpenseClaimsAdminList(event)">🔄 Refresh</button></div>
+          <div id="expense-claims-admin-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
+        </div>
+      </div>
+
+      <!-- CUSTOM REPORT BUILDER TAB -->
+      <div class="tab-content" id="tab-reportbuilder">
+        <div class="analytics-box">
+          <div class="analytics-title">🧩 Build a Custom Report</div>
+          <div class="hint" style="text-align:left; margin-bottom:12px;">Uses whatever attendance data is already loaded — click "Refresh Data" on the Overview tab first if you haven't yet.</div>
+          <div class="filters-box">
+            <input type="date" id="rb-from-date">
+            <input type="date" id="rb-to-date">
+            <select id="rb-emp-filter"><option value="">All Employees</option></select>
+          </div>
+          <div class="form-group">
+            <label>Include Status</label>
+            <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px;">
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-status-cb" value="Present" checked style="width:auto;"> Present</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-status-cb" value="Absent" checked style="width:auto;"> Absent</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-status-cb" value="Leave" checked style="width:auto;"> Leave</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-status-cb" value="Tour" checked style="width:auto;"> Tour</label>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Include Columns</label>
+            <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px;">
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-col-cb" value="timestamp" checked style="width:auto;"> Date &amp; Time</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-col-cb" value="empId" checked style="width:auto;"> Emp ID</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-col-cb" value="name" checked style="width:auto;"> Name</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-col-cb" value="status" checked style="width:auto;"> Status</label>
+              <label style="display:flex; align-items:center; gap:5px;"><input type="checkbox" class="rb-col-cb" value="location" style="width:auto;"> Location</label>
+            </div>
+          </div>
+          <button class="btn-secondary" onclick="generateCustomReport(event)">⚙️ Generate Report</button>
+          <div class="admin-actions" style="margin-top:12px;">
+            <button class="btn-success" onclick="exportCustomReportCSV(event)">⬇ Download CSV</button>
+            <button class="btn-secondary" onclick="exportCustomReportPDF(event)">📄 Download PDF</button>
+          </div>
+        </div>
+        <div class="analytics-box">
+          <div class="analytics-title">📊 Report Preview (<span id="rb-result-count">0</span> rows)</div>
+          <div class="scroll-box">
+            <table><thead id="rb-result-thead"></thead><tbody id="rb-result-tbody"><tr><td style="text-align:center; color:var(--sub-text); padding:20px;">Click "Generate Report".</td></tr></tbody></table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MANAGE ADMINS TAB -->
+      <div class="tab-content" id="tab-admins">
+        <div class="analytics-box">
+          <div class="analytics-title">🔑 Add New Admin Account</div>
+          <div class="filters-box">
+            <input type="text" id="admin-new-username" placeholder="Username">
+            <input type="text" id="admin-new-name" placeholder="Display Name">
+            <input type="password" id="admin-new-password" placeholder="Password">
+            <button class="btn-success" style="margin:0;" onclick="saveAdminUI(event)">➕ Add Admin</button>
+          </div>
+          <div id="admin-save-status" class="status hidden"></div>
+        </div>
+        <div class="analytics-box">
+          <div class="analytics-title">📋 Existing Admins</div>
+          <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadAdminsList(event)">🔄 Refresh</button></div>
+          <div id="admins-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
         </div>
       </div>
 
@@ -1490,16 +1597,6 @@ async function handleLogin(e){
   const loginBtn = document.getElementById("login-btn");
   loginBtn.disabled = true;
 
-  if (userInp.toLowerCase() === "admin" && passInp === "admin123") {
-    currentUser = { id: "ADMIN", name: "Administrator", role: "admin" };
-    setHeaderUser(currentUser.name, null);
-    showScreen("admin-dashboard");
-    fetchAdminReport();
-    fetchAllProfiles();
-    loginBtn.disabled = false;
-    return;
-  }
-
   const passwordHash = await sha256(passInp);
 
   try{
@@ -1512,6 +1609,15 @@ async function handleLogin(e){
     if (data && data.locked) {
       statusDiv.innerText = `Account locked. Try again in ${Math.ceil((data.remainingLockSeconds||600)/60)} minute(s).`;
       statusDiv.className = "status error";
+      loginBtn.disabled = false;
+      return;
+    }
+    if (data && data.success && data.role === "admin") {
+      currentUser = { id: userInp, name: (data.profile && data.profile.name) || "Administrator", role: "admin" };
+      setHeaderUser(currentUser.name, null);
+      showScreen("admin-dashboard");
+      fetchAdminReport();
+      fetchAllProfiles();
       loginBtn.disabled = false;
       return;
     }
@@ -1528,7 +1634,16 @@ async function handleLogin(e){
     }
     throw new Error("no-backend-auth");
   }catch(err){
-    // Legacy fallback (backend not upgraded yet) — matches old plaintext check.
+    // Legacy fallback (backend unreachable/not upgraded yet).
+    if (userInp.toLowerCase() === "admin" && passInp === "admin123") {
+      currentUser = { id: "ADMIN", name: "Administrator", role: "admin" };
+      setHeaderUser(currentUser.name, null);
+      showScreen("admin-dashboard");
+      fetchAdminReport();
+      fetchAllProfiles();
+      loginBtn.disabled = false;
+      return;
+    }
     const matchedKey = Object.keys(employees).find(k => k.toLowerCase() === userInp.toLowerCase());
     if (matchedKey && passInp === DEFAULT_PASSWORD) {
       loginSuccess(matchedKey, {});
@@ -1880,6 +1995,11 @@ function switchAdminTab(tab){
   if (tab === "teams") { populateTeamManagementUI(); loadTeamsList(); populateShiftEmpSelect(); }
   if (tab === "holidays") loadHolidaysList();
   if (tab === "work") { populateWorkAssignSelect(); loadWorkOrdersList(); }
+  if (tab === "regularization") loadRegularizationList();
+  if (tab === "announcements") loadAnnouncementsAdminList();
+  if (tab === "expenses") loadExpenseClaimsAdminList();
+  if (tab === "reportbuilder") populateReportBuilderEmpFilter();
+  if (tab === "admins") loadAdminsList();
 }
 
 /* ---- Admin: Today's attendance + download ---- */
@@ -2971,9 +3091,274 @@ async function submitCompleteWork(e){
   }
 }
 
+/* =====================================================================
+   ADMIN: ATTENDANCE REGULARIZATION APPROVALS
+   ===================================================================== */
+function loadRegularizationList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("regularization-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getRegularizationRequests`)
+    .then(res => res.json())
+    .then(data => {
+      const pending = ((data && data.requests) || []).filter(r => r.status === "Pending");
+      if (!pending.length) { box.innerHTML = '<div class="notif-empty">✅ No pending correction requests.</div>'; return; }
+      box.innerHTML = pending.map(r => `
+        <div class="notif-item">
+          <div class="n-ic">📝</div>
+          <div style="flex:1;">
+            <div class="n-title">${r.name} (${r.empId}) — wants <b>${r.requestedStatus}</b> on ${r.date}</div>
+            <div class="n-sub">Reason: ${r.reason || "—"} · Requested: ${r.requestedAt}</div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="decideRegularizationUI('${r.requestId}','approve')">✔ Approve</button>
+              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="decideRegularizationUI('${r.requestId}','reject')">✕ Reject</button>
+            </div>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function decideRegularizationUI(requestId, decision){
+  showFullLoader(decision === "approve" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"decideRegularization", requestId, decision }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); loadRegularizationList(); })
+    .catch(err => { hideFullLoader(); alert("Could not update: " + err.message); });
+}
+
+/* =====================================================================
+   ADMIN: ANNOUNCEMENTS
+   ===================================================================== */
+function postAnnouncementUI(e){
+  if (e) e.preventDefault();
+  const title = document.getElementById("an-title").value.trim();
+  const message = document.getElementById("an-message").value.trim();
+  const statusDiv = document.getElementById("an-post-status");
+  if (!title || !message) { statusDiv.innerText = "Enter both a title and a message."; statusDiv.className = "status error"; return; }
+  showFullLoader("Posting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"postAnnouncement", title, message, postedBy: currentUser.name }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success===false) throw new Error(data.error);
+      statusDiv.innerText = "Announcement posted."; statusDiv.className = "status success";
+      document.getElementById("an-title").value = ""; document.getElementById("an-message").value = "";
+      showSuccessOverlay("Announcement Posted");
+      loadAnnouncementsAdminList();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not post: " + err.message; statusDiv.className = "status error"; });
+}
+function loadAnnouncementsAdminList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("announcements-admin-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getAnnouncements`)
+    .then(res => res.json())
+    .then(data => {
+      const list = (data && data.announcements) || [];
+      if (!list.length) { box.innerHTML = '<div class="notif-empty">No announcements posted yet.</div>'; return; }
+      box.innerHTML = list.map(a => `
+        <div class="notif-item">
+          <div class="n-ic">📢</div>
+          <div style="flex:1; display:flex; justify-content:space-between; gap:10px;">
+            <div><div class="n-title">${a.title}</div><div class="n-sub">${a.message}</div><div class="n-sub">By ${a.postedBy} · ${a.postedAt}</div></div>
+            <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto; height:fit-content;" onclick="deleteAnnouncementUI('${a.id}')">🗑</button>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function deleteAnnouncementUI(id){
+  if (!confirm("Delete this announcement?")) return;
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"deleteAnnouncement", id }) })
+    .then(() => loadAnnouncementsAdminList())
+    .catch(err => alert("Could not delete: " + err.message));
+}
+
+/* =====================================================================
+   ADMIN: EXPENSE CLAIMS
+   ===================================================================== */
+function loadExpenseClaimsAdminList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("expense-claims-admin-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getExpenseClaims`)
+    .then(res => res.json())
+    .then(data => {
+      const claims = (data && data.claims) || [];
+      if (!claims.length) { box.innerHTML = '<div class="notif-empty">No expense claims yet.</div>'; return; }
+      box.innerHTML = claims.map(c => {
+        const badgeClass = c.status === "Approved" ? "badge-present" : c.status === "Rejected" ? "badge-absent" : "badge-pending";
+        const actions = c.status === "Pending" ? `
+          <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="decideExpenseClaimUI('${c.claimId}','approve')">✔ Approve</button>
+          <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="decideExpenseClaimUI('${c.claimId}','reject')">✕ Reject</button>` : "";
+        return `<div class="notif-item">
+          <div class="n-ic">💰</div>
+          <div style="flex:1;">
+            <div class="n-title">${c.name} (${c.empId}) — ₹${c.amount} <span class="badge ${badgeClass}" style="margin-left:6px;">${c.status}</span></div>
+            <div class="n-sub">${c.category} · ${c.description || "—"} · ${c.submittedAt}</div>
+            ${c.receiptUrl ? `<div class="n-sub"><a class="map-link" href="${c.receiptUrl}" target="_blank" rel="noopener">📎 View Receipt</a></div>` : ""}
+            ${actions ? `<div style="display:flex; gap:8px; margin-top:8px;">${actions}</div>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function decideExpenseClaimUI(claimId, decision){
+  showFullLoader(decision === "approve" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"decideExpenseClaim", claimId, decision }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); loadExpenseClaimsAdminList(); })
+    .catch(err => { hideFullLoader(); alert("Could not update: " + err.message); });
+}
+
+/* =====================================================================
+   ADMIN: CUSTOM REPORT BUILDER (works off whatever is in lastLoadedRows)
+   ===================================================================== */
+let reportBuilderRows = [];
+function populateReportBuilderEmpFilter(){
+  const sel = document.getElementById("rb-emp-filter");
+  const ids = allKnownEmployeeIds();
+  sel.innerHTML = '<option value="">All Employees</option>' + ids.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
+}
+function generateCustomReport(e){
+  if (e) e.preventDefault();
+  if (!lastLoadedRows.length) { alert("No data loaded. Go to Overview tab and click 'Refresh Data' first."); return; }
+  const fromDate = document.getElementById("rb-from-date").value;
+  const toDate = document.getElementById("rb-to-date").value;
+  const empFilter = document.getElementById("rb-emp-filter").value;
+  const statuses = Array.from(document.querySelectorAll(".rb-status-cb:checked")).map(cb => cb.value);
+  const columns = Array.from(document.querySelectorAll(".rb-col-cb:checked")).map(cb => cb.value);
+
+  reportBuilderRows = lastLoadedRows.filter(r => {
+    const shown = displayStatus(r.status);
+    if (statuses.length && !statuses.includes(shown)) return false;
+    if (empFilter && (r.empId || r.employeeId) !== empFilter) return false;
+    const d = parseFlexibleDate(r.timestamp || r.date);
+    if (fromDate && d < new Date(fromDate)) return false;
+    if (toDate && d > new Date(toDate + "T23:59:59")) return false;
+    return true;
+  });
+
+  const colLabels = { timestamp:"Date & Time", empId:"Emp ID", name:"Name", status:"Status", location:"Location" };
+  const thead = document.getElementById("rb-result-thead");
+  thead.innerHTML = `<tr>${columns.map(c => `<th>${colLabels[c]}</th>`).join("")}</tr>`;
+  const tbody = document.getElementById("rb-result-tbody");
+  document.getElementById("rb-result-count").innerText = reportBuilderRows.length;
+  if (!reportBuilderRows.length) { tbody.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center; color:var(--sub-text);">No matching records.</td></tr>`; return; }
+  const hydrationQueue = [];
+  tbody.innerHTML = reportBuilderRows.map(r => {
+    return `<tr>${columns.map(c => {
+      if (c === "empId") return `<td>${r.empId||r.employeeId||""}</td>`;
+      if (c === "status") return `<td><span class="badge ${({Present:"badge-present",Absent:"badge-absent",Leave:"badge-leave",Tour:"badge-tour"})[displayStatus(r.status)]||"badge-absent"}">${displayStatus(r.status)}</span></td>`;
+      if (c === "location") return `<td>${locationCellHtml(r.location, hydrationQueue)}</td>`;
+      if (c === "timestamp") return `<td>${r.timestamp||r.date||""}</td>`;
+      return `<td>${r[c]||""}</td>`;
+    }).join("")}</tr>`;
+  }).join("");
+  hydrateLocationCells(hydrationQueue);
+}
+function exportCustomReportCSV(e){
+  if (e) e.preventDefault();
+  if (!reportBuilderRows.length) { alert("Click 'Generate Report' first."); return; }
+  const columns = Array.from(document.querySelectorAll(".rb-col-cb:checked")).map(cb => cb.value);
+  const colLabels = { timestamp:"Date & Time", empId:"Emp ID", name:"Name", status:"Status", location:"Location" };
+  const rows = [columns.map(c => colLabels[c]).join(",")];
+  reportBuilderRows.forEach(r => {
+    const vals = columns.map(c => {
+      if (c === "status") return displayStatus(r.status);
+      if (c === "location") { const p = extractLocationParts(r.location); return p ? p.url : ""; }
+      if (c === "empId") return r.empId || r.employeeId || "";
+      if (c === "timestamp") return r.timestamp || r.date || "";
+      return r[c] || "";
+    });
+    rows.push(vals.map(v => `"${String(v).replace(/"/g,'""')}"`).join(","));
+  });
+  const blob = new Blob([rows.join("\n")], { type:"text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = `custom_report_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+}
+async function exportCustomReportPDF(e){
+  if (e) e.preventDefault();
+  if (!reportBuilderRows.length) { alert("Click 'Generate Report' first."); return; }
+  const columns = Array.from(document.querySelectorAll(".rb-col-cb:checked")).map(cb => cb.value);
+  const colLabels = { timestamp:"Date & Time", empId:"Emp ID", name:"Name", status:"Status", location:"Location" };
+  showFullLoader("Preparing PDF...");
+  let labels = [];
+  if (columns.includes("location")) labels = await Promise.all(reportBuilderRows.map(r => resolveLocationLabel(r.location)));
+  hideFullLoader();
+  const doc = newBrandedPDF("Custom Attendance Report", `Generated: ${new Date().toLocaleString()}`);
+  doc.autoTable(brandedTableOptions({
+    head: [columns.map(c => colLabels[c])],
+    body: reportBuilderRows.map((r,i) => columns.map(c => {
+      if (c === "status") return displayStatus(r.status);
+      if (c === "location") return labels[i] || "—";
+      if (c === "empId") return r.empId || r.employeeId || "";
+      if (c === "timestamp") return r.timestamp || r.date || "";
+      return r[c] || "";
+    }))
+  }));
+  finishBrandedPDF(doc);
+  doc.save(`custom_report_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+/* =====================================================================
+   ADMIN: MANAGE ADMINS
+   ===================================================================== */
+function loadAdminsList(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("admins-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getAdmins`)
+    .then(res => res.json())
+    .then(data => {
+      const admins = (data && data.admins) || [];
+      if (!admins.length) { box.innerHTML = '<div class="notif-empty">No admin accounts yet — run createFirstAdmin() once from the Apps Script editor, or add one above.</div>'; return; }
+      box.innerHTML = admins.map(a => `
+        <div class="notif-item">
+          <div class="n-ic">🔑</div>
+          <div style="flex:1; display:flex; justify-content:space-between; align-items:center;">
+            <div><div class="n-title">${a.name}</div><div class="n-sub">Username: ${a.username}</div></div>
+            <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="deleteAdminUI('${a.username}')">🗑 Remove</button>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+async function saveAdminUI(e){
+  if (e) e.preventDefault();
+  const username = document.getElementById("admin-new-username").value.trim();
+  const name = document.getElementById("admin-new-name").value.trim();
+  const password = document.getElementById("admin-new-password").value;
+  const statusDiv = document.getElementById("admin-save-status");
+  if (!username || !password) { statusDiv.innerText = "Username and password are required."; statusDiv.className = "status error"; return; }
+  showFullLoader("Adding admin...");
+  const passwordHash = await sha256(password);
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"saveAdmin", username, name, passwordHash }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success===false) throw new Error(data.error);
+      statusDiv.innerText = `Admin "${username}" added.`; statusDiv.className = "status success";
+      document.getElementById("admin-new-username").value = "";
+      document.getElementById("admin-new-name").value = "";
+      document.getElementById("admin-new-password").value = "";
+      loadAdminsList();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not add admin: " + err.message; statusDiv.className = "status error"; });
+}
+function deleteAdminUI(username){
+  if (!confirm(`Remove admin "${username}"?`)) return;
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"deleteAdmin", username }) })
+    .then(res => res.json())
+    .then(data => { if (data && data.success===false) throw new Error(data.error); loadAdminsList(); })
+    .catch(err => alert("Could not remove: " + err.message));
+}
 function populateTeamManagementUI(){
   const ids = allKnownEmployeeIds();
-  const tlSelect = document.getElementById("team-tl-select");
   tlSelect.innerHTML = '<option value="">Select a Team Leader...</option>' +
     ids.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
 
