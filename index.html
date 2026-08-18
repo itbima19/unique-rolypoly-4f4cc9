@@ -624,6 +624,56 @@ select#attendance-status{cursor:pointer;}
         <div id="cw-status" class="status hidden"></div>
       </div>
 
+      <!-- ANNOUNCEMENTS (visible to every employee, read-only) -->
+      <div class="analytics-box">
+        <div class="analytics-title">📢 Announcements</div>
+        <div class="admin-actions" style="margin-bottom:12px;">
+          <button class="btn-secondary" onclick="loadMyAnnouncements(event)">🔄 Refresh</button>
+        </div>
+        <div id="my-announcements-list"><div class="notif-empty">Click "Refresh" to load company announcements.</div></div>
+      </div>
+
+      <!-- ATTENDANCE CORRECTION REQUEST (visible to every employee) -->
+      <div class="analytics-box">
+        <div class="analytics-title">📅 Request Attendance Correction</div>
+        <div class="hint" style="text-align:left; margin-bottom:10px;">Marked wrong, or forgot to mark a past date? Request a correction — it goes to both your Team Leader and Admin for approval.</div>
+        <div class="filters-box">
+          <input type="date" id="reg-date-input">
+          <select id="reg-status-select">
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Leave">Leave</option>
+            <option value="Tour">Tour</option>
+          </select>
+          <input type="text" id="reg-reason-input" placeholder="Reason for correction">
+          <button class="btn-secondary" style="margin:0;" onclick="submitRegularizationRequest(event)">📩 Send Request</button>
+        </div>
+        <div id="reg-submit-status" class="status hidden"></div>
+        <div class="admin-actions" style="margin:14px 0 10px;"><button class="btn-secondary" onclick="loadMyRegularizationRequests(event)">🔄 My Past Requests</button></div>
+        <div id="my-regularization-list"><div class="notif-empty">Click "My Past Requests" to see status.</div></div>
+      </div>
+
+      <!-- MY EXPENSE CLAIMS (visible to every employee) -->
+      <div class="analytics-box">
+        <div class="analytics-title">💰 My Expense Claims</div>
+        <div class="filters-box">
+          <input type="number" id="exp-amount-input" placeholder="Amount (₹)" min="0" step="0.01">
+          <select id="exp-category-select">
+            <option value="Travel">Travel</option>
+            <option value="Food">Food</option>
+            <option value="Fuel">Fuel</option>
+            <option value="Accommodation">Accommodation</option>
+            <option value="Other">Other</option>
+          </select>
+          <input type="text" id="exp-description-input" placeholder="Description">
+          <input type="file" id="exp-receipt-input" accept="image/*,.pdf">
+        </div>
+        <button class="btn-secondary" onclick="submitExpenseClaimUI(event)">📩 Submit Claim</button>
+        <div id="exp-submit-status" class="status hidden"></div>
+        <div class="admin-actions" style="margin:14px 0 10px;"><button class="btn-secondary" onclick="loadMyExpenseClaims(event)">🔄 My Past Claims</button></div>
+        <div id="my-expense-list"><div class="notif-empty">Click "My Past Claims" to see status.</div></div>
+      </div>
+
       <!-- MY TEAM LEADER (visible to every employee, if assigned to a team) -->
       <div class="last-attendance hidden" id="my-tl-box" style="flex-direction:column; align-items:flex-start; gap:6px;">
         <span style="font-weight:800;">👤 My Team Leader</span>
@@ -645,6 +695,8 @@ select#attendance-status{cursor:pointer;}
           <button class="tab-btn" onclick="switchTLPTab('analytics')">📊 Analytics</button>
           <button class="tab-btn" onclick="switchTLPTab('reports')">📄 Reports</button>
           <button class="tab-btn" onclick="switchTLPTab('leave')">🗓 Leave Approvals</button>
+          <button class="tab-btn" onclick="switchTLPTab('regularization')">📅 Correction Requests</button>
+          <button class="tab-btn" onclick="switchTLPTab('expenses')">💰 Expenses</button>
           <button class="tab-btn" onclick="switchTLPTab('history')">🔐 Login History</button>
         </div>
 
@@ -742,6 +794,24 @@ select#attendance-status{cursor:pointer;}
             <div class="analytics-title">🗓 Pending Leave Requests — My Team</div>
             <div id="tlp-leave-list"><div class="notif-empty">Click "Load Requests".</div></div>
             <button class="btn-secondary" style="margin-top:12px;" onclick="tlpLoadLeaveRequests(event)">🔄 Load Requests</button>
+          </div>
+        </div>
+
+        <!-- TLP REGULARIZATION APPROVALS -->
+        <div class="tab-content" id="tlp-tab-regularization">
+          <div class="analytics-box">
+            <div class="analytics-title">📅 Attendance Correction Requests — My Team</div>
+            <div id="tlp-regularization-list"><div class="notif-empty">Click "Load Requests".</div></div>
+            <button class="btn-secondary" style="margin-top:12px;" onclick="tlpLoadRegularizationRequests(event)">🔄 Load Requests</button>
+          </div>
+        </div>
+
+        <!-- TLP EXPENSE APPROVALS -->
+        <div class="tab-content" id="tlp-tab-expenses">
+          <div class="analytics-box">
+            <div class="analytics-title">💰 Expense Claims — My Team</div>
+            <div id="tlp-expense-list"><div class="notif-empty">Click "Load Claims".</div></div>
+            <button class="btn-secondary" style="margin-top:12px;" onclick="tlpLoadExpenseClaims(event)">🔄 Load Claims</button>
           </div>
         </div>
 
@@ -1700,6 +1770,7 @@ function loginSuccess(empId, profile, role, team){
   showScreen("employee-dashboard");
   loadEmployeeHistory(currentUser.id);
   loadMyTL(currentUser.id);
+  loadMyAnnouncements();
   if (currentUser.role === "tl") revealTLPanel(team || []);
 }
 
@@ -3448,6 +3519,205 @@ function deleteTeamUI(tlEmpId){
 /* =====================================================================
    MY TEAM LEADER (shown to every employee, if they're on a team)
    ===================================================================== */
+/* =====================================================================
+   EMPLOYEE: ANNOUNCEMENTS (read-only)
+   ===================================================================== */
+function loadMyAnnouncements(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("my-announcements-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getAnnouncements`)
+    .then(res => res.json())
+    .then(data => {
+      const items = ((data && data.announcements) || []).slice(0, 10);
+      if (!items.length) { box.innerHTML = '<div class="notif-empty">No announcements yet.</div>'; return; }
+      box.innerHTML = items.map(a => `
+        <div class="notif-item">
+          <div class="n-ic">📢</div>
+          <div style="flex:1;">
+            <div class="n-title">${a.title}</div>
+            <div class="n-sub">${a.message}</div>
+            <div class="n-sub" style="margin-top:2px;">— ${a.postedBy}, ${a.postedAt}</div>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+
+/* =====================================================================
+   EMPLOYEE: ATTENDANCE CORRECTION (REGULARIZATION) REQUESTS
+   ===================================================================== */
+function submitRegularizationRequest(e){
+  if (e) e.preventDefault();
+  const date = document.getElementById("reg-date-input").value;
+  const requestedStatus = document.getElementById("reg-status-select").value;
+  const reason = document.getElementById("reg-reason-input").value.trim();
+  const statusDiv = document.getElementById("reg-submit-status");
+  if (!date) { statusDiv.innerText = "Pick the date you want corrected."; statusDiv.className = "status error"; return; }
+  showFullLoader("Sending request...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"requestRegularization", empId: currentUser.id, name: currentUser.name, date, requestedStatus, reason }) })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = "Correction request sent to your Team Leader and Admin for approval.";
+      statusDiv.className = "status success";
+      showSuccessOverlay("Request Sent");
+      document.getElementById("reg-reason-input").value = "";
+      loadMyRegularizationRequests();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not send request: " + err.message; statusDiv.className = "status error"; });
+}
+function loadMyRegularizationRequests(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("my-regularization-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getRegularizationRequests`)
+    .then(res => res.json())
+    .then(data => {
+      const mine = ((data && data.requests) || []).filter(r => r.empId === currentUser.id).reverse();
+      if (!mine.length) { box.innerHTML = '<div class="notif-empty">No correction requests yet.</div>'; return; }
+      box.innerHTML = mine.map(r => {
+        const badgeClass = r.status === "Approved" ? "badge-present" : r.status === "Rejected" ? "badge-absent" : "badge-pending";
+        return `<div class="notif-item">
+          <div class="n-ic">📝</div>
+          <div style="flex:1;">
+            <div class="n-title">Requested <b>${r.requestedStatus}</b> on ${r.date} <span class="badge ${badgeClass}" style="margin-left:6px;">${r.status}</span></div>
+            <div class="n-sub">${r.reason || "—"} · ${r.requestedAt}</div>
+          </div>
+        </div>`;
+      }).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+
+/* =====================================================================
+   EMPLOYEE: EXPENSE CLAIMS
+   ===================================================================== */
+function submitExpenseClaimUI(e){
+  if (e) e.preventDefault();
+  const amount = document.getElementById("exp-amount-input").value;
+  const category = document.getElementById("exp-category-select").value;
+  const description = document.getElementById("exp-description-input").value.trim();
+  const receiptFile = document.getElementById("exp-receipt-input").files[0];
+  const statusDiv = document.getElementById("exp-submit-status");
+  if (!amount || Number(amount) <= 0) { statusDiv.innerText = "Enter a valid amount."; statusDiv.className = "status error"; return; }
+
+  showFullLoader("Submitting claim...");
+  (receiptFile ? fileToBase64(receiptFile) : Promise.resolve(""))
+    .then(receiptBase64 => {
+      const payload = {
+        action:"submitExpenseClaim", empId: currentUser.id, name: currentUser.name,
+        amount, category, description,
+        receiptBase64, receiptMime: receiptFile ? receiptFile.type : ""
+      };
+      return fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify(payload) });
+    })
+    .then(res => res.json())
+    .then(data => {
+      hideFullLoader();
+      if (data && data.success === false) throw new Error(data.error);
+      statusDiv.innerText = "Expense claim submitted."; statusDiv.className = "status success";
+      showSuccessOverlay("Claim Submitted");
+      ["exp-amount-input","exp-description-input"].forEach(id => document.getElementById(id).value = "");
+      document.getElementById("exp-receipt-input").value = "";
+      loadMyExpenseClaims();
+    })
+    .catch(err => { hideFullLoader(); statusDiv.innerText = "Could not submit: " + err.message; statusDiv.className = "status error"; });
+}
+function loadMyExpenseClaims(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("my-expense-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getExpenseClaims&empId=${encodeURIComponent(currentUser.id)}`)
+    .then(res => res.json())
+    .then(data => {
+      const claims = (data && data.claims) || [];
+      if (!claims.length) { box.innerHTML = '<div class="notif-empty">No expense claims yet.</div>'; return; }
+      box.innerHTML = claims.map(c => {
+        const badgeClass = c.status === "Approved" ? "badge-present" : c.status === "Rejected" ? "badge-absent" : "badge-pending";
+        return `<div class="notif-item">
+          <div class="n-ic">💰</div>
+          <div style="flex:1;">
+            <div class="n-title">₹${c.amount} — ${c.category} <span class="badge ${badgeClass}" style="margin-left:6px;">${c.status}</span></div>
+            <div class="n-sub">${c.description || "—"} · ${c.submittedAt}</div>
+            ${c.receiptUrl ? `<div class="n-sub"><a class="map-link" href="${c.receiptUrl}" target="_blank" rel="noopener">📎 View Receipt</a></div>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+
+/* =====================================================================
+   TL PANEL: CORRECTION REQUESTS + EXPENSES (scoped to team)
+   ===================================================================== */
+function tlpLoadRegularizationRequests(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("tlp-regularization-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getRegularizationRequests`)
+    .then(res => res.json())
+    .then(data => {
+      const pending = ((data && data.requests) || []).filter(r => r.status === "Pending" && tlTeamMembers.includes(r.empId));
+      if (!pending.length) { box.innerHTML = '<div class="notif-empty">✅ No pending correction requests in your team.</div>'; return; }
+      box.innerHTML = pending.map(r => `
+        <div class="notif-item">
+          <div class="n-ic">📝</div>
+          <div style="flex:1;">
+            <div class="n-title">${r.name} (${r.empId}) — wants <b>${r.requestedStatus}</b> on ${r.date}</div>
+            <div class="n-sub">Reason: ${r.reason || "—"} · Requested: ${r.requestedAt}</div>
+            <div style="display:flex; gap:8px; margin-top:8px;">
+              <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="tlpDecideRegularization('${r.requestId}','approve')">✔ Approve</button>
+              <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="tlpDecideRegularization('${r.requestId}','reject')">✕ Reject</button>
+            </div>
+          </div>
+        </div>`).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function tlpDecideRegularization(requestId, decision){
+  showFullLoader(decision === "approve" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"decideRegularization", requestId, decision }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); tlpLoadRegularizationRequests(); })
+    .catch(err => { hideFullLoader(); alert("Could not update: " + err.message); });
+}
+function tlpLoadExpenseClaims(e){
+  if (e) e.preventDefault();
+  const box = document.getElementById("tlp-expense-list");
+  box.innerHTML = '<div class="notif-empty"><span class="loader" style="border-top-color:#2563eb; border-color:rgba(37,99,235,.25);"></span> Loading...</div>';
+  fetch(`${API_URL}?action=getExpenseClaims`)
+    .then(res => res.json())
+    .then(data => {
+      const claims = ((data && data.claims) || []).filter(c => tlTeamMembers.includes(c.empId));
+      if (!claims.length) { box.innerHTML = '<div class="notif-empty">No expense claims in your team yet.</div>'; return; }
+      box.innerHTML = claims.map(c => {
+        const badgeClass = c.status === "Approved" ? "badge-present" : c.status === "Rejected" ? "badge-absent" : "badge-pending";
+        const actions = c.status === "Pending" ? `
+          <button class="btn-success" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="tlpDecideExpense('${c.claimId}','approve')">✔ Approve</button>
+          <button class="btn-logout" style="margin:0; padding:6px 12px; font-size:11.5px; width:auto;" onclick="tlpDecideExpense('${c.claimId}','reject')">✕ Reject</button>` : "";
+        return `<div class="notif-item">
+          <div class="n-ic">💰</div>
+          <div style="flex:1;">
+            <div class="n-title">${c.name} (${c.empId}) — ₹${c.amount} <span class="badge ${badgeClass}" style="margin-left:6px;">${c.status}</span></div>
+            <div class="n-sub">${c.category} · ${c.description || "—"} · ${c.submittedAt}</div>
+            ${c.receiptUrl ? `<div class="n-sub"><a class="map-link" href="${c.receiptUrl}" target="_blank" rel="noopener">📎 View Receipt</a></div>` : ""}
+            ${actions ? `<div style="display:flex; gap:8px; margin-top:8px;">${actions}</div>` : ""}
+          </div>
+        </div>`;
+      }).join("");
+    })
+    .catch(err => { box.innerHTML = `<div class="notif-empty" style="color:#dc2626;">Failed: ${err.message}</div>`; });
+}
+function tlpDecideExpense(claimId, decision){
+  showFullLoader(decision === "approve" ? "Approving..." : "Rejecting...");
+  fetch(API_URL, { method:"POST", headers:{"Content-Type":"text/plain;charset=utf-8"}, body: JSON.stringify({ action:"decideExpenseClaim", claimId, decision }) })
+    .then(res => res.json())
+    .then(data => { hideFullLoader(); if (data && data.success===false) throw new Error(data.error); tlpLoadExpenseClaims(); })
+    .catch(err => { hideFullLoader(); alert("Could not update: " + err.message); });
+}
+
 function loadMyTL(empId){
   fetch(`${API_URL}?action=getMyTL&empId=${encodeURIComponent(empId)}`)
     .then(res => res.json())
