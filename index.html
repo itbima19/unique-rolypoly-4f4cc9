@@ -981,6 +981,10 @@ select#attendance-status{cursor:pointer;}
             File needs a header row with these column names (any order, extra columns ignored):
             <b>EmpId, Name, Mobile, Email, Department, Designation, JoiningDate, DOB</b>. Existing Employee IDs get updated; new ones get created with the default password.
           </div>
+          <div class="admin-actions">
+            <button type="button" class="btn-secondary" onclick="downloadEmployeeImportTemplate()">⬇ Download Excel Sample</button>
+            <button type="button" class="btn-outline" onclick="downloadEmployeeImportCSVTemplate()">⬇ Download CSV Sample</button>
+          </div>
           <input type="file" id="bulk-import-file" accept=".xlsx,.xls,.csv" onchange="handleBulkImportFile(event)">
           <div id="bulk-import-preview" class="hidden" style="margin-top:12px;">
             <div class="scroll-box" style="max-height:220px;">
@@ -2282,6 +2286,8 @@ function fetchAllProfiles(){
     .then(res => res.json())
     .then(data => {
       allProfiles = (data && data.profiles) || {};
+      const teamTab = document.getElementById("tab-teams");
+      if (teamTab && !teamTab.classList.contains("hidden")) populateTeamManagementUI();
       const totalEl = document.getElementById("stat-total");
       if (totalEl && Object.keys(allProfiles).length) totalEl.innerText = Object.keys(allProfiles).length;
     })
@@ -2680,17 +2686,39 @@ function loadLoginHistory(e){
 /* =====================================================================
    ADMIN: TEAM MANAGEMENT
    ===================================================================== */
+function normalizeEmpId(id){ return String(id == null ? "" : id).trim().toUpperCase(); }
 function allKnownEmployeeIds(){
-  const ids = new Set([...Object.keys(employees), ...Object.keys(allProfiles)]);
-  return Array.from(ids).sort();
+  const ids = new Map();
+  Object.keys(employees || {}).forEach(id => ids.set(normalizeEmpId(id), id));
+  Object.keys(allProfiles || {}).forEach(id => ids.set(normalizeEmpId(id), id));
+  return Array.from(ids.values()).filter(Boolean).sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
 }
 function nameForEmpId(id){
-  return (allProfiles[id] && allProfiles[id].name) || employees[id] || id;
+  const profile = allProfiles[id] || Object.keys(allProfiles || {}).reduce((found,k)=>found || (normalizeEmpId(k)===normalizeEmpId(id)?allProfiles[k]:null),null);
+  return (profile && profile.name) || (employees && (employees[id] || employees[normalizeEmpId(id)])) || id;
 }
-/* =====================================================================
-   BULK EMPLOYEE IMPORT (Excel/CSV via SheetJS)
-   ===================================================================== */
+/* BULK EMPLOYEE IMPORT */
 let bulkImportRows = [];
+function employeeImportSampleRows(){return [
+ {EmpId:"EMP001",Name:"Rahul Sharma",Mobile:"9876543210",Email:"rahul@example.com",Department:"IT",Designation:"Support Engineer",JoiningDate:"2026-04-01",DOB:"1998-05-12"},
+ {EmpId:"EMP002",Name:"Priya Verma",Mobile:"9876501234",Email:"priya@example.com",Department:"Operations",Designation:"Team Member",JoiningDate:"2026-05-15",DOB:"2000-08-20"}
+];}
+function downloadEmployeeImportTemplate(){
+ if(typeof XLSX==="undefined"){alert("Excel library did not load. Check your internet connection.");return;}
+ const wb=XLSX.utils.book_new(), headers=["EmpId","Name","Mobile","Email","Department","Designation","JoiningDate","DOB"];
+ const ws=XLSX.utils.json_to_sheet(employeeImportSampleRows(),{header:headers});
+ ws["!cols"]=[{wch:16},{wch:24},{wch:16},{wch:30},{wch:20},{wch:24},{wch:16},{wch:14}];
+ XLSX.utils.book_append_sheet(wb,ws,"Employees");
+ XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([["Instructions"],["Keep header names unchanged."],["EmpId is required; use a unique ID."],["Use YYYY-MM-DD for dates."],["Edit or remove sample rows before importing."]]),"Instructions");
+ XLSX.writeFile(wb,"UP_IT_Services_Employee_Import_Template.xlsx");
+}
+function downloadEmployeeImportCSVTemplate(){
+ const headers=["EmpId","Name","Mobile","Email","Department","Designation","JoiningDate","DOB"];
+ const rows=[headers,...employeeImportSampleRows().map(r=>headers.map(h=>r[h]||""))];
+ const csv=rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\r\n");
+ const blob=new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"}),url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="UP_IT_Services_Employee_Import_Template.csv";a.click();URL.revokeObjectURL(url);
+}
 function handleBulkImportFile(event){
   const file = event.target.files[0];
   const statusDiv = document.getElementById("bulk-import-status");
@@ -2705,12 +2733,14 @@ function handleBulkImportFile(event){
       const keyMap = { empid:"empId", "emp id":"empId", name:"name", mobile:"mobile", email:"email",
         department:"department", designation:"designation", joiningdate:"joiningDate", "joining date":"joiningDate",
         dob:"dob", "date of birth":"dob" };
+      const seenIds = new Set();
       bulkImportRows = json.map(row => {
         const out = {};
         Object.keys(row).forEach(k => {
           const norm = keyMap[k.toString().trim().toLowerCase()];
           if (norm) out[norm] = row[k] instanceof Date ? row[k].toISOString().slice(0,10) : String(row[k]).trim();
         });
+        if(out.empId){const idKey=normalizeEmpId(out.empId);if(seenIds.has(idKey))out._duplicate=true;seenIds.add(idKey);}
         return out;
       }).filter(r => r.empId);
 
@@ -2720,6 +2750,8 @@ function handleBulkImportFile(event){
         document.getElementById("bulk-import-preview").classList.add("hidden");
         return;
       }
+      const duplicates=bulkImportRows.filter(r=>r._duplicate);
+      if(duplicates.length){statusDiv.innerText="Duplicate EmpId in file: "+duplicates.map(r=>r.empId).join(", ")+". Remove duplicate rows and upload again.";statusDiv.className="status error";document.getElementById("bulk-import-preview").classList.add("hidden");return;}
       const tbody = document.getElementById("bulk-import-preview-tbody");
       tbody.innerHTML = bulkImportRows.slice(0, 50).map(r => `
         <tr><td>${r.empId||""}</td><td>${r.name||""}</td><td>${r.mobile||""}</td><td>${r.email||""}</td><td>${r.department||""}</td><td>${r.designation||""}</td></tr>
@@ -3429,16 +3461,14 @@ function deleteAdminUI(username){
     .catch(err => alert("Could not remove: " + err.message));
 }
 function populateTeamManagementUI(){
-  const ids = allKnownEmployeeIds();
-  tlSelect.innerHTML = '<option value="">Select a Team Leader...</option>' +
-    ids.map(id => `<option value="${id}">${nameForEmpId(id)} (${id})</option>`).join("");
-
-  const checklist = document.getElementById("team-members-checklist");
-  checklist.innerHTML = ids.map(id => `
-    <label style="display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px; cursor:pointer;">
-      <input type="checkbox" class="team-member-cb" value="${id}" style="width:auto; margin:0;">
-      ${nameForEmpId(id)} <span style="color:var(--sub-text); font-size:11.5px;">(${id})</span>
-    </label>`).join("");
+  const tlSelect=document.getElementById("team-tl-select"), checklist=document.getElementById("team-members-checklist");
+  if(!tlSelect||!checklist)return;
+  const ids=allKnownEmployeeIds(), oldTL=tlSelect.value;
+  const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  tlSelect.innerHTML='<option value="">Select a Team Leader...</option>'+ids.map(id=>`<option value="${esc(id)}">${esc(nameForEmpId(id))} (${esc(id)})</option>`).join("");
+  if(ids.some(id=>normalizeEmpId(id)===normalizeEmpId(oldTL)))tlSelect.value=oldTL;
+  checklist.innerHTML=ids.map(id=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;font-size:13px;cursor:pointer;"><input type="checkbox" class="team-member-cb" value="${esc(id)}" style="width:auto;margin:0;">${esc(nameForEmpId(id))} <span style="color:var(--sub-text);font-size:11.5px;">(${esc(id)})</span></label>`).join("")||'<div class="notif-empty">No employees found. Import employees first.</div>';
+  onTeamTLChange();
 }
 function onTeamTLChange(){
   const tlId = document.getElementById("team-tl-select").value;
