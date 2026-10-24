@@ -373,7 +373,7 @@ select#attendance-status{cursor:pointer;}
 .face-match-status{padding:10px 12px;border-radius:10px;margin-top:10px;font-size:13px;background:var(--accent-soft)}
 @media(max-width:640px){.face-attendance-grid{grid-template-columns:1fr}.face-preview{max-height:260px}}
 </style>
-<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/build/face-api.min.js"></script>
+<!-- face-api is loaded with CDN fallback when Face Attendance is opened -->
 </head>
 <body>
 
@@ -1359,7 +1359,16 @@ let officeGeofence = null;
 let adminFaceBusy = false;
 let faceMatchPassedForUser = "";
 let faceModelsLoaded = false;
-const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
+const FACE_MODEL_URLS = [
+  "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights",
+  "https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights"
+];
+const FACE_API_SCRIPT_URLS = [
+  "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/build/face-api.min.js",
+  "https://unpkg.com/face-api.js@0.22.2/build/face-api.min.js",
+  "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/build/face-api.min.js"
+];
+let faceApiLibraryPromise = null;
 let lastLoadedRows = [];
 let filteredRows = [];
 let myMonthlyRows = [];
@@ -1922,16 +1931,48 @@ function setFaceStatus(message, kind){
   el.style.background = kind === "success" ? "#dcfce7" : kind === "error" ? "#fee2e2" : "var(--accent-soft)";
   el.style.color = kind === "success" ? "#166534" : kind === "error" ? "#991b1b" : "var(--text)";
 }
+async function loadFaceApiLibrary(){
+  if (window.faceapi) return window.faceapi;
+  if (faceApiLibraryPromise) return faceApiLibraryPromise;
+  faceApiLibraryPromise = (async () => {
+    const failures = [];
+    for (const src of FACE_API_SCRIPT_URLS) {
+      try {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.async = true;
+          script.onload = () => window.faceapi ? resolve() : reject(new Error("Library loaded but faceapi missing"));
+          script.onerror = () => { script.remove(); reject(new Error("CDN load failed: " + src)); };
+          document.head.appendChild(script);
+        });
+        if (window.faceapi) return window.faceapi;
+      } catch (err) { failures.push(err.message || String(err)); }
+    }
+    faceApiLibraryPromise = null;
+    throw new Error("Face matching library download nahi ho paayi. Internet/CDN access check karein; ad-blocker ya firewall CDN block kar sakta hai. Details: " + failures.join(" | "));
+  })();
+  return faceApiLibraryPromise;
+}
 async function ensureFaceModels(){
   if (faceModelsLoaded) return;
-  if (!window.faceapi) throw new Error("Face matching library load nahi hui. Internet connection check karke page refresh karein.");
-  setFaceStatus("Face matching models load ho rahe hain…", "info");
-  await Promise.all([
-    faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
-    faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
-  ]);
-  faceModelsLoaded = true;
+  setFaceStatus("Face matching library aur models load ho rahe hain…", "info");
+  const api = await loadFaceApiLibrary();
+  const modelFailures = [];
+  for (const baseUrl of FACE_MODEL_URLS) {
+    try {
+      await Promise.all([
+        api.nets.tinyFaceDetector.loadFromUri(baseUrl),
+        api.nets.faceLandmark68Net.loadFromUri(baseUrl),
+        api.nets.faceRecognitionNet.loadFromUri(baseUrl)
+      ]);
+      faceModelsLoaded = true;
+      return;
+    } catch (err) {
+      modelFailures.push(baseUrl + ": " + (err.message || String(err)));
+    }
+  }
+  throw new Error("Face matching models download nahi hue. Internet connection, firewall aur CDN access check karein. Details: " + modelFailures.join(" | "));
 }
 async function startFaceCamera(e){
   if (e) e.preventDefault();
