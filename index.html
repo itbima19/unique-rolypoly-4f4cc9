@@ -362,7 +362,18 @@ select#attendance-status{cursor:pointer;}
   .tabs{gap:8px;}
   .tab-btn{padding:8px 14px; font-size:11.5px;}
 }
+
+/* Face-match attendance */
+.face-attendance-card{background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:18px;margin:18px 0;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.face-attendance-head{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;margin-bottom:8px}
+.face-attendance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}
+.face-preview{width:100%;max-height:300px;aspect-ratio:4/3;object-fit:cover;background:#0f172a;border-radius:12px;border:1px solid var(--border)}
+.face-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.face-note{font-size:12px;color:var(--sub-text);line-height:1.5;margin-top:8px}
+.face-match-status{padding:10px 12px;border-radius:10px;margin-top:10px;font-size:13px;background:var(--accent-soft)}
+@media(max-width:640px){.face-attendance-grid{grid-template-columns:1fr}.face-preview{max-height:260px}}
 </style>
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/build/face-api.min.js"></script>
 </head>
 <body>
 
@@ -573,6 +584,7 @@ select#attendance-status{cursor:pointer;}
         </div>
       </div>
 
+      <!-- Employee attendance keeps the original self-service flow; face matching is in the Admin Face Attendance tab. -->
       <div class="form-group">
         <label for="attendance-status">Select Status</label>
         <select id="attendance-status" onchange="updateLocationNote()">
@@ -830,6 +842,32 @@ select#attendance-status{cursor:pointer;}
       <button class="btn-logout" onclick="logout(event)">🚪 Logout</button>
     </div>
 
+    <!-- FACE ATTENDANCE OPERATOR: separate login, does not replace employee login -->
+    <div id="face-operator-dashboard" class="hidden">
+      <div class="analytics-box">
+        <div class="analytics-title">📸 Live Face Attendance Operator</div>
+        <p class="face-note">Ek baar mein ek employee ko camera ke saamne laayein. Match hone par naam/Employee ID confirm karke attendance mark karein. Fixed centre ke 100m radius aur GPS accuracy ki checking hogi.</p>
+        <div class="face-attendance-grid">
+          <div><label>Live Camera</label><video id="operator-face-video" class="face-preview" autoplay muted playsinline></video></div>
+          <div><label>Captured Live Photo</label><canvas id="operator-face-canvas" class="face-preview"></canvas></div>
+        </div>
+        <div class="face-actions">
+          <button type="button" class="btn-secondary" onclick="startOperatorCamera(event)">📷 Open / Restart Camera</button>
+          <button type="button" class="btn-success" id="operator-capture-btn" onclick="captureOperatorFace(event)">Capture &amp; Match</button>
+          <button type="button" class="btn-secondary" id="operator-back-btn" onclick="operatorNextEmployee(event)">↩ Back / Next Employee</button>
+        </div>
+        <div id="operator-matched-card" class="analytics-box hidden" style="margin-top:14px;">
+          <div class="analytics-title">Matched Employee</div>
+          <h2 id="operator-matched-name" style="margin:4px 0;">—</h2>
+          <div class="face-note">Employee ID: <b id="operator-matched-id">—</b></div>
+          <button type="button" class="btn-success" id="operator-mark-btn" onclick="markOperatorMatchedAttendance(event)">✔ Mark Attendance</button>
+        </div>
+        <div id="operator-face-status" class="face-match-status" role="status">Camera start karne ke liye button dabayein.</div>
+        <div id="operator-face-result" class="face-note"></div>
+      </div>
+      <button class="btn-logout" onclick="logout(event)">🚪 Logout Face Operator</button>
+    </div>
+
     <!-- 3. ADMIN DASHBOARD -->
     <div id="admin-dashboard" class="hidden">
       <div class="tabs">
@@ -840,6 +878,7 @@ select#attendance-status{cursor:pointer;}
         <button class="tab-btn" onclick="switchAdminTab('leave')">🗓 Leave Approvals</button>
         <button class="tab-btn" onclick="switchAdminTab('history')">🔐 Login History</button>
         <button class="tab-btn" onclick="switchAdminTab('teams')">👥 Team Management</button>
+        <button class="tab-btn" onclick="switchAdminTab('faceattendance')">📸 Face Attendance</button>
         <button class="tab-btn" onclick="switchAdminTab('holidays')">🎉 Holidays</button>
         <button class="tab-btn" onclick="switchAdminTab('work')">🛠 Work Management</button>
         <button class="tab-btn" onclick="switchAdminTab('regularization')">📝 Regularization</button>
@@ -847,6 +886,32 @@ select#attendance-status{cursor:pointer;}
         <button class="tab-btn" onclick="switchAdminTab('expenses')">💰 Expense Claims</button>
         <button class="tab-btn" onclick="switchAdminTab('reportbuilder')">🧩 Custom Report</button>
         <button class="tab-btn" onclick="switchAdminTab('admins')">🔑 Manage Admins</button>
+      </div>
+
+      <!-- ADMIN FACE ATTENDANCE + FIXED OFFICE GEOFENCE -->
+      <div class="tab-content" id="tab-faceattendance">
+        <div class="analytics-box">
+          <div class="analytics-title">📍 Fixed Office / Exam Centre Geofence</div>
+          <p class="face-note">Centre ke latitude/longitude yahan save karein. Employee aur Admin Face Attendance dono ke liye 100 metre radius enforce hoga.</p>
+          <div class="form-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+            <div class="form-group"><label for="geofence-lat">Centre Latitude</label><input id="geofence-lat" type="number" step="any" placeholder="e.g. 28.5355"></div>
+            <div class="form-group"><label for="geofence-lon">Centre Longitude</label><input id="geofence-lon" type="number" step="any" placeholder="e.g. 77.3910"></div>
+          </div>
+          <div class="face-actions"><button class="btn-success" type="button" onclick="saveOfficeGeofence(event)">💾 Save Centre Location</button><button class="btn-secondary" type="button" onclick="loadOfficeGeofence(event)">↻ Load Saved Location</button></div>
+          <div id="geofence-config-status" class="face-match-status" role="status">Centre location not loaded yet. Save latitude and longitude to enable attendance.</div>
+        </div>
+        <div class="analytics-box">
+          <div class="analytics-title">📸 Admin Face Attendance (optional)</div>
+          <p class="face-note">Employee ko portal mein login karne ki zaroorat nahi. Camera se ek live face capture hoga; registered employee photos se match hoga. Match ke baad us employee ki attendance mark hogi. Sirf authorized admin use karein.</p>
+          <div class="face-attendance-grid">
+            <div><label>Live Camera</label><video id="admin-face-live-video" class="face-preview" autoplay muted playsinline></video></div>
+            <div><label>Captured Photo</label><canvas id="admin-face-capture-canvas" class="face-preview"></canvas></div>
+          </div>
+          <div class="face-actions"><button type="button" class="btn-secondary" onclick="startAdminFaceCamera(event)">📷 Open Admin Camera</button><button type="button" class="btn-success" id="admin-face-match-btn" onclick="captureAndMatchAnyEmployee(event)" disabled>🔎 Capture, Match &amp; Mark Attendance</button><button type="button" class="btn-secondary" onclick="stopAdminFaceCamera()">Stop Camera</button></div>
+          <div id="admin-face-match-status" class="face-match-status" role="status">Pehle centre location save karein, phir camera open karein.</div>
+          <div id="admin-face-match-result" class="face-note"></div>
+          <p class="face-note">Note: browser-based face matching GPS spoofing ya printed-photo attacks ko poori tarah nahi rokta. Admin live person ko verify kare. Attendance tabhi mark hogi jab configured centre ke 100m radius mein GPS mile.</p>
+        </div>
       </div>
 
       <!-- OVERVIEW TAB -->
@@ -1219,6 +1284,19 @@ select#attendance-status{cursor:pointer;}
           <div id="admin-save-status" class="status hidden"></div>
         </div>
         <div class="analytics-box">
+          <div class="analytics-title">📸 Create Face Attendance Operator Login</div>
+          <p class="face-note">Yeh alag login sirf live photo capture, face match aur attendance mark karne ke liye hai. Isse Admin settings ya employee dashboard access nahi milega.</p>
+          <div class="filters-box">
+            <input type="text" id="faceop-new-username" placeholder="Operator Login ID">
+            <input type="text" id="faceop-new-name" placeholder="Operator Name">
+            <input type="password" id="faceop-new-password" placeholder="Password (minimum 6 chars)">
+            <button class="btn-success" style="margin:0;" onclick="saveFaceOperatorUI(event)">➕ Add Face Operator</button>
+          </div>
+          <div id="faceop-save-status" class="status hidden"></div>
+          <div class="admin-actions" style="margin-top:12px;"><button class="btn-secondary" onclick="loadFaceOperatorsList(event)">🔄 Refresh Operators</button></div>
+          <div id="face-operators-list"><div class="notif-empty">Refresh to load operator accounts.</div></div>
+        </div>
+        <div class="analytics-box">
           <div class="analytics-title">📋 Existing Admins</div>
           <div class="admin-actions" style="margin-bottom:12px;"><button class="btn-secondary" onclick="loadAdminsList(event)">🔄 Refresh</button></div>
           <div id="admins-list"><div class="notif-empty">Click "Refresh" to load.</div></div>
@@ -1230,7 +1308,7 @@ select#attendance-status{cursor:pointer;}
   </div>
 
   <div class="site-footer">
-    <div>Attendance Management Portal · <b>Version 3.0</b></div>
+    <div>Attendance Management Portal · <b>Version 4.3 Face Operator</b></div>
     <div class="foot-line">© 2026 UPENDRA BAIS</div>
     <div class="foot-line">Powered by Google Sheets</div>
   </div>
@@ -1275,6 +1353,13 @@ const DEFAULT_PASSWORD = "@2026";
 function getDesignation(empId){ return empId === "EDU/1023" ? "TL" : "Network Administrator"; }
 
 let currentUser = null;
+let faceCameraStream = null;
+let adminFaceCameraStream = null;
+let officeGeofence = null;
+let adminFaceBusy = false;
+let faceMatchPassedForUser = "";
+let faceModelsLoaded = false;
+const FACE_MODEL_URL = "https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights";
 let lastLoadedRows = [];
 let filteredRows = [];
 let myMonthlyRows = [];
@@ -1559,7 +1644,7 @@ function renderNotifItems(items){
    SCREEN NAV / LOGOUT
    ===================================================================== */
 function showScreen(screenId){
-  ["login-screen","employee-dashboard","admin-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
+  ["login-screen","employee-dashboard","admin-dashboard","face-operator-dashboard"].forEach(id => document.getElementById(id).classList.add("hidden"));
   document.getElementById(screenId).classList.remove("hidden");
   document.querySelector(".container").classList.toggle("login-mode", screenId === "login-screen");
 }
@@ -1580,6 +1665,8 @@ function toggleLoginHelp(e){
 }
 function logout(e){
   if (e) e.preventDefault();
+  stopFaceCamera(); stopAdminFaceCamera(); stopOperatorCamera(); faceMatchPassedForUser = "";
+  if(operatorResetTimer){clearTimeout(operatorResetTimer);operatorResetTimer=null;}
   currentUser = null;
   document.getElementById("username").value = "";
   document.getElementById("password").value = "";
@@ -1686,6 +1773,15 @@ async function handleLogin(e){
       loginBtn.disabled = false;
       return;
     }
+    if (data && data.success && data.role === "faceoperator") {
+      currentUser = { id: userInp, name: (data.profile && data.profile.name) || userInp, role: "faceoperator" };
+      setHeaderUser(currentUser.name, null);
+      showScreen("face-operator-dashboard");
+      resetOperatorMatchUI();
+      startOperatorCamera();
+      loginBtn.disabled = false;
+      return;
+    }
     if (data && data.success && data.role === "admin") {
       currentUser = { id: userInp, name: (data.profile && data.profile.name) || "Administrator", role: "admin" };
       setHeaderUser(currentUser.name, null);
@@ -1740,6 +1836,11 @@ function renderProfileInfoGrid(){
 }
 
 function loginSuccess(empId, profile, role, team){
+  stopFaceCamera(); faceMatchPassedForUser = "";
+  const faceStatus = document.getElementById("face-match-status");
+  if (faceStatus) faceStatus.textContent = "Please open camera and capture your face. Face match is required for Present attendance.";
+  const faceCaptureBtn = document.getElementById("face-capture-btn"); if (faceCaptureBtn) faceCaptureBtn.disabled = true;
+  const faceCanvas = document.getElementById("face-capture-canvas"); if (faceCanvas) faceCanvas.getContext("2d").clearRect(0,0,faceCanvas.width,faceCanvas.height);
   const matchedKey = Object.keys(employees).find(k => k.toLowerCase() === empId.toLowerCase()) || empId;
   currentUser = {
     id: matchedKey,
@@ -1813,6 +1914,267 @@ function reverseGeocode(lat, lon){
 }
 
 /* =====================================================================
+   FACE MATCH ATTENDANCE (browser-side comparison)
+   ===================================================================== */
+function setFaceStatus(message, kind){
+  const el = document.getElementById("face-match-status"); if (!el) return;
+  el.textContent = message;
+  el.style.background = kind === "success" ? "#dcfce7" : kind === "error" ? "#fee2e2" : "var(--accent-soft)";
+  el.style.color = kind === "success" ? "#166534" : kind === "error" ? "#991b1b" : "var(--text)";
+}
+async function ensureFaceModels(){
+  if (faceModelsLoaded) return;
+  if (!window.faceapi) throw new Error("Face matching library load nahi hui. Internet connection check karke page refresh karein.");
+  setFaceStatus("Face matching models load ho rahe hain…", "info");
+  await Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri(FACE_MODEL_URL),
+    faceapi.nets.faceLandmark68Net.loadFromUri(FACE_MODEL_URL),
+    faceapi.nets.faceRecognitionNet.loadFromUri(FACE_MODEL_URL)
+  ]);
+  faceModelsLoaded = true;
+}
+async function startFaceCamera(e){
+  if (e) e.preventDefault();
+  try {
+    if (!currentUser || currentUser.role === "admin") throw new Error("Employee account se login karein.");
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("Camera access supported nahi hai. HTTPS website par open karein.");
+    await ensureFaceModels();
+    stopFaceCamera();
+    faceCameraStream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+    const video = document.getElementById("face-live-video");
+    video.srcObject = faceCameraStream;
+    await video.play();
+    document.getElementById("face-capture-btn").disabled = false;
+    faceMatchPassedForUser = "";
+    setFaceStatus("Camera ready. Seedhe camera ki taraf dekhein aur Capture & Match dabayein.", "info");
+  } catch(err) { setFaceStatus(err.message || "Camera start nahi hua.", "error"); }
+}
+function stopFaceCamera(){
+  if (faceCameraStream) { faceCameraStream.getTracks().forEach(t=>t.stop()); faceCameraStream = null; }
+  const video = document.getElementById("face-live-video"); if (video) video.srcObject = null;
+}
+async function getRegisteredFaceImage(){
+  if (!currentUser) throw new Error("Employee login nahi hai.");
+  const res = await fetch(`${API_URL}?action=getPhotoData&empId=${encodeURIComponent(currentUser.id)}`);
+  const data = await res.json();
+  if (!data || !data.success || !data.dataUrl) throw new Error("Aapki registered profile photo nahi mili. Pehle profile mein clear face photo upload karein.");
+  const img = new Image(); img.src = data.dataUrl;
+  await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=()=>reject(new Error("Profile photo load nahi ho paayi."));});
+  return img;
+}
+async function captureAndVerifyFace(e){
+  if (e) e.preventDefault();
+  const btn = document.getElementById("face-capture-btn"); btn.disabled = true;
+  try {
+    await ensureFaceModels();
+    const video = document.getElementById("face-live-video");
+    if (!faceCameraStream || !video.videoWidth) throw new Error("Pehle Open Camera dabayein.");
+    const canvas = document.getElementById("face-capture-canvas");
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+    setFaceStatus("Live face aur registered photo compare ho rahi hai…", "info");
+    const options = new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+    const live = await faceapi.detectSingleFace(canvas,options).withFaceLandmarks().withFaceDescriptor();
+    if (!live) throw new Error("Live photo mein face detect nahi hua. Achhi light mein dobara try karein.");
+    const registeredImage = await getRegisteredFaceImage();
+    const reference = await faceapi.detectSingleFace(registeredImage,options).withFaceLandmarks().withFaceDescriptor();
+    if (!reference) throw new Error("Profile photo mein clear face detect nahi hua. Clear front-facing photo upload karein.");
+    const distance = faceapi.euclideanDistance(live.descriptor,reference.descriptor);
+    // Conservative starter threshold; real deployments should calibrate with actual cameras and false-match testing.
+    if (distance <= 0.48) {
+      faceMatchPassedForUser = currentUser.id;
+      setFaceStatus(`Face match successful (descriptor distance ${distance.toFixed(3)}). Ab Present attendance submit kar sakte hain.`, "success");
+      const statusSelect = document.getElementById("attendance-status"); if (statusSelect) statusSelect.value = "Present";
+    } else {
+      faceMatchPassedForUser = "";
+      setFaceStatus("Face match nahi hua. Profile photo verify karein, lighting sudharein aur dobara try karein.", "error");
+    }
+  } catch(err) { faceMatchPassedForUser = ""; setFaceStatus(err.message || "Face match failed.", "error"); }
+  finally { btn.disabled = !faceCameraStream; }
+}
+
+/* =====================================================================
+   SEPARATE FACE ATTENDANCE OPERATOR FLOW
+   ===================================================================== */
+let operatorCameraStream = null;
+let operatorBusy = false;
+let operatorMatchedEmployee = null;
+let operatorLastGps = null;
+let operatorResetTimer = null;
+function setOperatorStatus(message, kind){
+  const el=document.getElementById("operator-face-status"); if(!el)return;
+  el.textContent=message;
+  el.style.background=kind==="success"?"#dcfce7":kind==="error"?"#fee2e2":"var(--accent-soft)";
+  el.style.color=kind==="success"?"#166534":kind==="error"?"#991b1b":"var(--text)";
+}
+function resetOperatorMatchUI(){
+  operatorMatchedEmployee=null;operatorLastGps=null;
+  if(operatorResetTimer){clearTimeout(operatorResetTimer);operatorResetTimer=null;}
+  const card=document.getElementById("operator-matched-card");if(card)card.classList.add("hidden");
+  const result=document.getElementById("operator-face-result");if(result)result.textContent="";
+  const btn=document.getElementById("operator-capture-btn");if(btn)btn.disabled=!operatorCameraStream;
+  const mark=document.getElementById("operator-mark-btn");if(mark)mark.disabled=true;
+  const canvas=document.getElementById("operator-face-canvas");if(canvas)canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+}
+async function startOperatorCamera(e){
+  if(e)e.preventDefault();
+  if(!currentUser||currentUser.role!=="faceoperator"){setOperatorStatus("Face Operator login required.","error");return;}
+  try{
+    await ensureFaceModels();stopOperatorCamera();
+    operatorCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+    const v=document.getElementById("operator-face-video");v.srcObject=operatorCameraStream;await v.play();
+    resetOperatorMatchUI();setOperatorStatus("Camera ready. Employee ko frame mein rakhein, phir Capture & Match dabayein.","info");
+  }catch(err){setOperatorStatus(err.message||"Camera start nahi hua. HTTPS aur camera permission check karein.","error");}
+}
+function stopOperatorCamera(){if(operatorCameraStream){operatorCameraStream.getTracks().forEach(t=>t.stop());operatorCameraStream=null;}const v=document.getElementById("operator-face-video");if(v)v.srcObject=null;}
+function operatorNextEmployee(e){if(e)e.preventDefault();resetOperatorMatchUI();if(operatorCameraStream){setOperatorStatus("Next employee ke liye camera ready hai.","info");}else startOperatorCamera();}
+async function captureOperatorFace(e){
+  if(e)e.preventDefault();if(operatorBusy)return;
+  if(!currentUser||currentUser.role!=="faceoperator"){setOperatorStatus("Face Operator login required.","error");return;}
+  operatorBusy=true;const btn=document.getElementById("operator-capture-btn");btn.disabled=true;
+  try{
+    if(!officeGeofence){const gr=await fetch(`${API_URL}?action=getOperatorGeofence&operatorId=${encodeURIComponent(currentUser.id)}`);const gd=await gr.json();if(gd.success&&gd.configured)officeGeofence={lat:Number(gd.latitude),lon:Number(gd.longitude),radius:100};}
+    if(!officeGeofence)throw new Error("Admin ne abhi fixed centre location configure nahi ki hai.");
+    // Server validates the configured 100m geofence again when attendance is saved.
+    const video=document.getElementById("operator-face-video");if(!operatorCameraStream||!video.videoWidth)throw new Error("Camera ready nahi hai. Open / Restart Camera dabayein.");
+    const canvas=document.getElementById("operator-face-canvas");canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+    const pos=await getBrowserPosition();if(pos.coords.accuracy>50)throw new Error(`GPS accuracy ${Math.round(pos.coords.accuracy)}m hai. Better GPS signal ke saath retry karein.`);
+    operatorLastGps={latitude:pos.coords.latitude,longitude:pos.coords.longitude,accuracy:Math.round(pos.coords.accuracy)};
+    setOperatorStatus("Live photo capture ho gayi. Employee profile photos se match kar rahe hain…","info");
+    const options=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+    const live=await faceapi.detectSingleFace(canvas,options).withFaceLandmarks().withFaceDescriptor();
+    if(!live)throw new Error("Live photo mein face detect nahi hua. Face ko seedha camera ki taraf rakhein.");
+    const profRes=await fetch(`${API_URL}?action=getAllProfiles`);const profData=await profRes.json();const profiles=profData.profiles||{};const ids=Object.keys(profiles).filter(id=>String(id).trim());
+    let best=null,checked=0;
+    for(let i=0;i<ids.length;i++){
+      const empId=ids[i];setOperatorStatus(`Matching profiles… ${i+1}/${ids.length}: ${empId}`,"info");
+      try{const pr=await fetch(`${API_URL}?action=getPhotoData&empId=${encodeURIComponent(empId)}`);const pd=await pr.json();if(!pd.success||!pd.dataUrl)continue;
+        const img=new Image();img.src=pd.dataUrl;await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error("Photo load failed"));});
+        const ref=await faceapi.detectSingleFace(img,options).withFaceLandmarks().withFaceDescriptor();if(!ref)continue;
+        const distance=faceapi.euclideanDistance(live.descriptor,ref.descriptor);checked++;if(!best||distance<best.distance)best={empId,name:profiles[empId]?.name||profiles[empId]?.Name||empId,distance};
+      }catch(ignore){}
+    }
+    if(!best||best.distance>0.48)throw new Error(`Reliable match nahi mila (${checked} profile photos checked). Clear profile photo ke saath retry karein.`);
+    operatorMatchedEmployee=best;
+    document.getElementById("operator-matched-name").textContent=best.name;document.getElementById("operator-matched-id").textContent=best.empId;
+    document.getElementById("operator-matched-card").classList.remove("hidden");document.getElementById("operator-mark-btn").disabled=false;
+    setOperatorStatus("Face match mil gaya. Naam aur Employee ID verify karke Mark Attendance dabayein.","success");
+  }catch(err){setOperatorStatus(err.message||"Face match failed.","error");btn.disabled=!operatorCameraStream;}
+  finally{operatorBusy=false;}
+}
+async function markOperatorMatchedAttendance(e){
+  if(e)e.preventDefault();if(!operatorMatchedEmployee||!operatorLastGps){setOperatorStatus("Pehle live face match karein.","error");return;}
+  const btn=document.getElementById("operator-mark-btn");btn.disabled=true;
+  try{
+    const d=await adminApiPost({action:"faceOperatorAttendance",operatorId:currentUser.id,empId:operatorMatchedEmployee.empId,name:operatorMatchedEmployee.name,latitude:operatorLastGps.latitude,longitude:operatorLastGps.longitude,accuracy:operatorLastGps.accuracy,faceDistance:operatorMatchedEmployee.distance});
+    if(!d.success)throw new Error(d.error||"Attendance save nahi hui.");
+    setOperatorStatus(d.alreadyMarked?`${operatorMatchedEmployee.name} ki aaj ki attendance pehle se marked hai.`:`${operatorMatchedEmployee.name} (${operatorMatchedEmployee.empId}) ki attendance successfully mark ho gayi.`,d.alreadyMarked?"info":"success");
+    document.getElementById("operator-face-result").textContent=`GPS location recorded · Centre se ${d.distanceMetres}m.`;
+    document.getElementById("operator-matched-card").classList.add("hidden");
+    operatorResetTimer=setTimeout(()=>{resetOperatorMatchUI();if(operatorCameraStream){setOperatorStatus("10 seconds complete. Next employee ke liye camera ready hai.","info");}else startOperatorCamera();},10000);
+  }catch(err){setOperatorStatus(err.message||"Attendance save failed.","error");btn.disabled=false;}
+}
+
+/* =====================================================================
+   ADMIN FACE ATTENDANCE + FIXED 100M OFFICE GEOFENCE
+   ===================================================================== */
+function setAdminFaceStatus(message, kind){
+  const el=document.getElementById("admin-face-match-status"); if(!el)return;
+  el.textContent=message;
+  el.style.background=kind==="success"?"#dcfce7":kind==="error"?"#fee2e2":"var(--accent-soft)";
+  el.style.color=kind==="success"?"#166534":kind==="error"?"#991b1b":"var(--text)";
+}
+function adminApiPost(payload){
+  return fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify(payload)}).then(r=>r.json());
+}
+async function loadOfficeGeofence(e){
+  if(e)e.preventDefault();
+  const status=document.getElementById("geofence-config-status");
+  try{
+    const r=await fetch(`${API_URL}?action=getGeofence&adminId=${encodeURIComponent(currentUser?.id||"")}`);
+    const d=await r.json();
+    if(!d.success) throw new Error(d.error||"Could not load centre location.");
+    officeGeofence=d.configured?{lat:Number(d.latitude),lon:Number(d.longitude),radius:Number(d.radius||100)}:null;
+    document.getElementById("geofence-lat").value=officeGeofence?officeGeofence.lat:"";
+    document.getElementById("geofence-lon").value=officeGeofence?officeGeofence.lon:"";
+    status.textContent=officeGeofence?`Saved centre: ${officeGeofence.lat}, ${officeGeofence.lon} · Radius ${officeGeofence.radius} metres.`:"Centre location abhi configure nahi hai. Latitude/longitude save karein.";
+    if(!officeGeofence)setAdminFaceStatus("Pehle centre location save karein, phir camera open karein.","info");
+  }catch(err){status.textContent=err.message;}
+}
+async function saveOfficeGeofence(e){
+  if(e)e.preventDefault();
+  if(!currentUser||currentUser.role!=="admin"){setAdminFaceStatus("Sirf Admin centre location save kar sakta hai.","error");return;}
+  const lat=Number(document.getElementById("geofence-lat").value),lon=Number(document.getElementById("geofence-lon").value);
+  if(!Number.isFinite(lat)||lat < -90||lat>90||!Number.isFinite(lon)||lon < -180||lon>180){document.getElementById("geofence-config-status").textContent="Valid latitude (-90 to 90) aur longitude (-180 to 180) enter karein.";return;}
+  try{
+    const d=await adminApiPost({action:"saveGeofence",adminId:currentUser.id,latitude:lat,longitude:lon,radius:100});
+    if(!d.success)throw new Error(d.error||"Save failed.");
+    officeGeofence={lat,lon,radius:100};
+    document.getElementById("geofence-config-status").textContent=`Centre saved: ${lat}, ${lon} · Fixed radius 100 metres.`;
+    setAdminFaceStatus("Centre location save ho gayi. Ab 100m radius ke andar se attendance mark ho sakti hai.","success");
+  }catch(err){document.getElementById("geofence-config-status").textContent=err.message;}
+}
+async function startAdminFaceCamera(e){
+  if(e)e.preventDefault();
+  if(!currentUser||currentUser.role!=="admin"){setAdminFaceStatus("Admin login required.","error");return;}
+  if(!officeGeofence){await loadOfficeGeofence();if(!officeGeofence){setAdminFaceStatus("Pehle fixed centre latitude/longitude save karein.","error");return;}}
+  try{
+    await ensureFaceModels();stopAdminFaceCamera();
+    adminFaceCameraStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:640},height:{ideal:480}},audio:false});
+    const v=document.getElementById("admin-face-live-video");v.srcObject=adminFaceCameraStream;
+    document.getElementById("admin-face-match-btn").disabled=false;
+    setAdminFaceStatus("Camera ready. Ek employee ko frame mein rakhein aur Capture, Match & Mark Attendance dabayein.","info");
+  }catch(err){setAdminFaceStatus(err.message||"Camera start nahi hua. HTTPS aur camera permission check karein.","error");}
+}
+function stopAdminFaceCamera(){if(adminFaceCameraStream){adminFaceCameraStream.getTracks().forEach(t=>t.stop());adminFaceCameraStream=null;}const v=document.getElementById("admin-face-live-video");if(v)v.srcObject=null;const b=document.getElementById("admin-face-match-btn");if(b)b.disabled=true;}
+function distanceMetres(lat1,lon1,lat2,lon2){const R=6371000,toRad=x=>x*Math.PI/180;const dLat=toRad(lat2-lat1),dLon=toRad(lon2-lon1);const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;return 2*R*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+function getBrowserPosition(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error("Is device/browser mein GPS available nahi hai."));navigator.geolocation.getCurrentPosition(resolve,err=>reject(new Error(err.code===1?"Location permission allow karein.":err.code===3?"GPS timeout. Dobara try karein.":"GPS location nahi mil paayi.")),{enableHighAccuracy:true,timeout:20000,maximumAge:0});});}
+async function captureAndMatchAnyEmployee(e){
+  if(e)e.preventDefault();if(adminFaceBusy)return;
+  if(!currentUser||currentUser.role!=="admin"){setAdminFaceStatus("Admin login required.","error");return;}
+  if(!officeGeofence){setAdminFaceStatus("Pehle fixed centre location save karein.","error");return;}
+  const btn=document.getElementById("admin-face-match-btn");adminFaceBusy=true;btn.disabled=true;
+  const result=document.getElementById("admin-face-match-result");result.textContent="";
+  try{
+    const video=document.getElementById("admin-face-live-video");if(!adminFaceCameraStream||!video.videoWidth)throw new Error("Pehle Open Admin Camera dabayein.");
+    const canvas=document.getElementById("admin-face-capture-canvas");canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext("2d").drawImage(video,0,0,canvas.width,canvas.height);
+    const pos=await getBrowserPosition();const lat=pos.coords.latitude,lon=pos.coords.longitude,accuracy=Math.round(pos.coords.accuracy);
+    const distance=distanceMetres(officeGeofence.lat,officeGeofence.lon,lat,lon);
+    if(accuracy>50)throw new Error(`GPS accuracy ${accuracy}m hai. Accurate location (50m ya better) ke saath dobara try karein.`);
+    if(distance>100)throw new Error(`Centre se ${Math.round(distance)}m door hain. Attendance ke liye fixed centre ke 100m radius mein hona zaroori hai.`);
+    setAdminFaceStatus("Live photo capture ho gayi. Employee profiles aur photos se match kar rahe hain…","info");
+    const options=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.5});
+    const live=await faceapi.detectSingleFace(canvas,options).withFaceLandmarks().withFaceDescriptor();
+    if(!live)throw new Error("Live photo mein face detect nahi hua. Face ko seedha camera ki taraf rakhein.");
+    const profRes=await fetch(`${API_URL}?action=getAllProfiles`);const profData=await profRes.json();
+    const profiles=profData.profiles||allProfiles||{};const ids=Object.keys(profiles).filter(id=>String(id).trim());
+    if(!ids.length)throw new Error("Employee profiles nahi mili.");
+    let best=null,checked=0,missing=0;
+    for(let i=0;i<ids.length;i++){
+      const empId=ids[i];
+      setAdminFaceStatus(`Profile match ho rahi hai… ${i+1}/${ids.length}: ${empId}`,"info");
+      try{
+        const pr=await fetch(`${API_URL}?action=getPhotoData&empId=${encodeURIComponent(empId)}`);const pd=await pr.json();
+        if(!pd.success||!pd.dataUrl){missing++;continue;}
+        const img=new Image();img.src=pd.dataUrl;await new Promise((res,rej)=>{img.onload=res;img.onerror=()=>rej(new Error("image load failed"));});
+        const ref=await faceapi.detectSingleFace(img,options).withFaceLandmarks().withFaceDescriptor();if(!ref){missing++;continue;}
+        const dist=faceapi.euclideanDistance(live.descriptor,ref.descriptor);checked++;
+        if(!best||dist<best.distance)best={empId,name:profiles[empId]?.name||profiles[empId]?.Name||empId,distance:dist};
+      }catch(ignore){missing++;}
+    }
+    if(!best||best.distance>0.48)throw new Error(`Kisi employee ka reliable face match nahi mila. Checked ${checked} profile photo(s). Clear registered photo aur lighting check karein.`);
+    const finalPos=await getBrowserPosition();const finalDistance=distanceMetres(officeGeofence.lat,officeGeofence.lon,finalPos.coords.latitude,finalPos.coords.longitude);
+    if(finalPos.coords.accuracy>50||finalDistance>100)throw new Error("Attendance submit karne se pehle GPS verify nahi hua. 100m radius ke andar dobara try karein.");
+    const d=await adminApiPost({action:"adminFaceAttendance",adminId:currentUser.id,empId:best.empId,name:best.name,latitude:finalPos.coords.latitude,longitude:finalPos.coords.longitude,accuracy:Math.round(finalPos.coords.accuracy),faceDistance:best.distance});
+    if(!d.success)throw new Error(d.error||"Attendance save nahi hui.");
+    result.textContent=`Matched: ${best.name} (${best.empId}) · Match score distance ${best.distance.toFixed(3)} · GPS centre se ${Math.round(finalDistance)}m.`;
+    setAdminFaceStatus(d.alreadyMarked?`${best.name} ki aaj ki attendance pehle se marked hai.`:`${best.name} (${best.empId}) ki Present attendance successfully mark ho gayi.`,d.alreadyMarked?"info":"success");
+    if(typeof fetchAdminReport==="function")fetchAdminReport();
+  }catch(err){setAdminFaceStatus(err.message||"Face attendance failed.","error");}
+  finally{adminFaceBusy=false;btn.disabled=!adminFaceCameraStream;}
+}
+
+/* =====================================================================
    MARK ATTENDANCE
    ===================================================================== */
 function markAttendance(e){
@@ -1872,7 +2234,7 @@ function markAttendance(e){
       // Store both the map link and the readable address in the single
       // "Location" column (separated by ||) so no backend/sheet change is
       // needed, yet reports can show the full place name AND link to the map.
-      const combinedLocation = `${mapsLink}||${address}`;
+      const combinedLocation = `GPS|${lat}|${lon}|${accuracy}|${mapsLink}||${address}`;
       sendAttendance(statusSelected, combinedLocation, msgDiv, submitBtn);
     },
     (error) => {
@@ -2068,13 +2430,14 @@ function switchAdminTab(tab){
   if (tab === "reports") populateIndividualEmpSelect();
   if (tab === "today") loadTodayAttendance();
   if (tab === "teams") { populateTeamManagementUI(); loadTeamsList(); populateShiftEmpSelect(); }
+  if (tab === "faceattendance") loadOfficeGeofence();
   if (tab === "holidays") loadHolidaysList();
   if (tab === "work") { populateWorkAssignSelect(); loadWorkOrdersList(); }
   if (tab === "regularization") loadRegularizationList();
   if (tab === "announcements") loadAnnouncementsAdminList();
   if (tab === "expenses") loadExpenseClaimsAdminList();
   if (tab === "reportbuilder") populateReportBuilderEmpFilter();
-  if (tab === "admins") loadAdminsList();
+  if (tab === "admins") { loadAdminsList(); loadFaceOperatorsList(); }
 }
 
 /* ---- Admin: Today's attendance + download ---- */
@@ -3411,6 +3774,14 @@ async function exportCustomReportPDF(e){
 /* =====================================================================
    ADMIN: MANAGE ADMINS
    ===================================================================== */
+async function saveFaceOperatorUI(e){
+  if(e)e.preventDefault();const username=document.getElementById("faceop-new-username").value.trim();const name=document.getElementById("faceop-new-name").value.trim();const password=document.getElementById("faceop-new-password").value;const status=document.getElementById("faceop-save-status");
+  if(!username||!name||password.length<6){status.textContent="Login ID, name aur kam se kam 6-character password enter karein.";status.className="status error";return;}
+  try{const d=await adminApiPost({action:"saveFaceOperator",adminId:currentUser.id,username,name,passwordHash:await sha256(password)});if(!d.success)throw new Error(d.error||"Save failed");status.textContent="Face Operator account create ho gaya.";status.className="status success";document.getElementById("faceop-new-username").value="";document.getElementById("faceop-new-name").value="";document.getElementById("faceop-new-password").value="";loadFaceOperatorsList();}catch(err){status.textContent=err.message;status.className="status error";}
+}
+async function loadFaceOperatorsList(e){if(e)e.preventDefault();const box=document.getElementById("face-operators-list");try{const d=await fetch(`${API_URL}?action=getFaceOperators&adminId=${encodeURIComponent(currentUser?.id||"")}`).then(r=>r.json());if(!d.success)throw new Error(d.error||"Could not load operators");box.innerHTML=(d.operators||[]).map(o=>`<div class="notif-item"><div class="n-ic">📸</div><div style="flex:1;display:flex;justify-content:space-between;align-items:center;"><div><div class="n-title">${escapeHtml(o.name)}</div><div class="n-sub">Login: ${escapeHtml(o.username)}</div></div><button class="btn-logout" style="margin:0;padding:6px 12px;font-size:11.5px;width:auto;" onclick="deleteFaceOperatorUI('${String(o.username).replace(/'/g,"\'")}')">🗑 Remove</button></div></div>`).join("")||'<div class="notif-empty">No Face Operators created yet.</div>';}catch(err){box.innerHTML=`<div class="notif-empty">${escapeHtml(err.message)}</div>`;}}
+async function deleteFaceOperatorUI(username){if(!confirm(`Remove Face Operator "${username}"?`))return;try{const d=await adminApiPost({action:"deleteFaceOperator",adminId:currentUser.id,username});if(!d.success)throw new Error(d.error||"Delete failed");loadFaceOperatorsList();}catch(err){alert(err.message);}}
+
 function loadAdminsList(e){
   if (e) e.preventDefault();
   const box = document.getElementById("admins-list");
