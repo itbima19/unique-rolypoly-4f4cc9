@@ -2045,6 +2045,7 @@ async function captureOperatorFace(e){
     const live=await faceapi.detectSingleFace(canvas,options).withFaceLandmarks().withFaceDescriptor();
     if(!live)throw new Error("Live photo mein face detect nahi hua. Face ko seedha camera ki taraf rakhein.");
     const profRes=await fetch(`${API_URL}?action=getAllProfiles`);const profData=await profRes.json();const profiles=profData.profiles||{};const ids=Object.keys(profiles).filter(id=>String(id).trim());
+    if(!ids.length) throw new Error("Employees sheet mein employee records nahi mile. Pehle employee IDs/Names add karein.");
     let best=null,checked=0;
     for(let i=0;i<ids.length;i++){
       const empId=ids[i];setOperatorStatus(`Matching profiles… ${i+1}/${ids.length}: ${empId}`,"info");
@@ -2383,7 +2384,8 @@ function handlePhotoFileSelected(event){
   if (!file.type.startsWith("image/")) { statusDiv.innerText = "Please select a valid image file."; statusDiv.className = "status error"; return; }
   if (file.size > 5*1024*1024) { statusDiv.innerText = "Image too large. Please choose a file under 5MB."; statusDiv.className = "status error"; return; }
   const reader = new FileReader();
-  reader.onload = () => uploadPhotoToDrive(reader.result.split(",")[1], file.type, file.name);
+  reader.onload = () => uploadPhotoToDrive(reader.result.split(",")[1], file.type || "image/jpeg", file.name);
+  event.target.value = "";
   reader.onerror = () => { statusDiv.innerText = "Could not read the selected file."; statusDiv.className = "status error"; };
   reader.readAsDataURL(file);
 }
@@ -2406,7 +2408,7 @@ function uploadPhotoToDrive(base64Data, mimeType, originalName){
       hideFullLoader();
       showSuccessOverlay("Photo Uploaded Successfully");
     })
-    .catch(err => { statusDiv.innerText = "Could not upload photo: " + err.message; statusDiv.className = "status error"; hideFullLoader(); });
+    .catch(err => { statusDiv.innerText = "Could not upload photo: " + (err.message || "Drive upload failed") + ". Backend mein setupPhotoFolder() ek baar Run karke Drive permission allow karein, phir New version deploy karein."; statusDiv.className = "status error"; hideFullLoader(); });
 }
 function fetchEmployeePhoto(empId){
   fetch(`${API_URL}?action=getPhoto&empId=${encodeURIComponent(empId)}`)
